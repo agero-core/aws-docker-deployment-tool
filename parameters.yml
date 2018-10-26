@@ -1,0 +1,9 @@
+#parameters.yml
+apiname: <api name>
+stage: <stage - dev/qa/stage/prod>
+accountid: <aws account id>
+vpc: <vpc id>
+subnet: <subnet id>
+sg: <security group id>
+region: <aws region>
+

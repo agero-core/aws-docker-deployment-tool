@@ -1,0 +1,137 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+plugins:
+  - serverless-python-requirements
+
+custom: ${file(/home/ec2-user/apitest/parameters.yml)}
+
+service: devops-resources # NOTE: update this with your service name
+
+provider:
+  name: aws
+  runtime: python2.7
+  role: arn:aws:iam::${self:custom.accountid}:role/Lambda_dynamo_Kinesis_ebaccess
+  region: ${self:custom.region}
+  vpc:
+    securityGroupIds:
+      - ${self:custom.sg}
+    subnetIds:
+      - ${self:custom.subnet}
+  
+#  environment:
+#    FUNCTION_ARN: "arn:aws:lambda:${self:provider.region}:${self:custom.accountid}:function:${self:service}-${opt:stage}-deployapi"
+
+functions:
+  deployapi:
+    name: deploy-${self:custom.stage}
+    handler: deployapi.lambda_handler
+    events:
+      - s3:
+         bucket: agero-serverless-api-packages-demo
+         event: s3:ObjectCreated:*  
+
+  healthcheckapi:
+    name: healthcheck-${self:custom.stage}
+    handler: healthcheckapi.lambda_handler
+    timeout: 10
+    
+    events:
+      - http:
+         path: /
+         method: post
+         integration: lambda
+         request:
+           template:
+             application/json: '{"api":"$input.params("api")"}'
+
+# you can add CloudFormation resource templates here
+resources:
+  Resources:
+
+    S3:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: agero-ecs-test-buckets
+        VersioningConfiguration:
+          Status: Enabled
+        
+    DynamoECSInventoryNonProd:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ECS_Inventory_NonProd
+        AttributeDefinitions:
+          - AttributeName: "ApplicationName"  
+            AttributeType: "S"
+          - AttributeName: "URL"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "ApplicationName"
+            KeyType: "HASH"
+          - AttributeName: "URL"
+            KeyType: "RANGE"      
+        ProvisionedThroughput:
+          ReadCapacityUnits: "5"
+          WriteCapacityUnits: "5"
+
+    DynamoECSInventoryProd:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ECS_Inventory_Prod
+        AttributeDefinitions:
+          - AttributeName: "ApplicationName"
+            AttributeType: "S"
+          - AttributeName: "URL"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "ApplicationName"
+            KeyType: "HASH"
+          - AttributeName: "URL"
+            KeyType: "RANGE"
+        ProvisionedThroughput:
+          ReadCapacityUnits: "5"
+          WriteCapacityUnits: "5"
+
+
+#    Repository:
+#      Type: AWS::ECR::Repository
+#      Properties: 
+#        RepositoryName: ${self:custom.apiname}
+#
+#    Cluster:
+#      Type: AWS::ECS::Cluster
+#      Properties:
+#        ClusterName: ${self:custom.apiname}
+#
+#    TaskDefinition:
+#      Type: AWS::ECS::TaskDefinition
+#      Properties:
+#        Cpu: 1024
+#        ExecutionRoleArn: arn:aws:iam::${self:custom.accountid}:role/ecsTaskExecutionRole
+#        Memory: 2048
+#        NetworkMode: awsvpc
+#        RequiresCompatibilities: 
+#          - FARGATE
+#        TaskRoleArn: arn:aws:iam::${self:custom.accountid}:role/ecsTaskExecutionRole
+#        ContainerDefinitions: 
+#          - Image: 377558703253.dkr.ecr.us-east-1.amazonaws.com/${self:custom.apiname}
+#            Name: ${self:custom.apiname}
+
+    
+                
+        
+
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"
