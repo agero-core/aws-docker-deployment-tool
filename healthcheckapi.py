@@ -25,9 +25,3 @@ def lambda_handler(event, context):
         "Health Status": health_status
     }
 
-''''
-api="https://2waycommunicationapi-stage.us-east-1.elasticbeanstalk.com/health"
-
-resp = requests.get(api, verify=False)
-print resp.status_code
-'''

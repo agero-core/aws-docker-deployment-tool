@@ -14,30 +14,6 @@ def lambda_handler(event, context):
     print ecr_repo
     print "Pushing " + ecr_repo + " to ECR"
 
-    api = event["api"]
-    print api
-   
-    session = requests.Session()
-    
-    response = session.get(api, verify=False, timeout=10)
-    statuscode = response.status_code
-    print statuscode
 
-    if statuscode == 200:
-        health_status = "Healthy"
-    else:
-        health_status = "Unhealthy"
-    
-    return {
-        "API": api,
-        "Status Code": statuscode,
-        "Health Status": health_status
-    }
 
-"""
-event = {}
-event["api"] = "https://2waycommunicationapi-stage.us-east-1.elasticbeanstalk.com/health"
-context = ""
-lambda_handler(event, context)
-""" 
  
