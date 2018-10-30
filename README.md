@@ -1,6 +1,6 @@
 # aws-docker-deployment-tool
 
-== Resources created by this serverless template ==
+##  Resources created by this serverless template
 
 	a) DynamoDB which will store the invemtory of all the deployed applications
 	b) S3 bucket which will store all the images
@@ -8,7 +8,7 @@
 	d) An healthcheckapi lambda function that will do the health check of any api
 		Ex: curl -H "Content-Type: application/json" -X POST https://<api-created-by-apigateway>/?api=<api-to-perform-healthcheck>
 		
-== Check out the parameters.yml file to fill out all the necessary parameters for the template to work ==
+##  Check out the parameters.yml file to fill out all the necessary parameters for the template to work
 
-== Once that's done execute the following command: ==
+##  Once that's done execute the following command: 
 	sls deploy
