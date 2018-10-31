@@ -35,3 +35,6 @@
 
 ##  Once that's done execute the following command
 	sls deploy
+	
+## Rollback the Stack
+	sls remove
