@@ -2,8 +2,7 @@ import json
 import requests
 
 def lambda_handler(event, context):
-    # Use this code if you don't use the http event with the LAMBDA-PROXY
-    # integration
+
     print event    
 
     record = event["Records"][0]
