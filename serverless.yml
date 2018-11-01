@@ -14,7 +14,7 @@
 plugins:
   - serverless-python-requirements
 
-custom: ${file(/home/ec2-user/apitest/parameters.yml)}
+custom: ${file(./parameters.yml)}
 
 service: devops-resources # NOTE: update this with your service name
 
@@ -28,9 +28,6 @@ provider:
       - ${self:custom.sg}
     subnetIds:
       - ${self:custom.subnet}
-  
-#  environment:
-#    FUNCTION_ARN: "arn:aws:lambda:${self:provider.region}:${self:custom.accountid}:function:${self:service}-${opt:stage}-deployapi"
 
 functions:
   deployapi:
@@ -54,6 +51,16 @@ functions:
          request:
            template:
              application/json: '{"api":"$input.params("api")"}'
+             
+  devopshealthcheckapi:
+    name: devopshealthcheckapi-${self:custom.stage}
+    handler: devopshealthcheckapi.lambda_handler
+    timeout: 10
+    events:
+      - http:
+          path: /devops/health
+          method: get
+          integration: lambda
 
 # you can add CloudFormation resource templates here
 resources:
@@ -101,6 +108,12 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: "5"
           WriteCapacityUnits: "5"
+          
+    DevOpsKinesisHealthCheckStream:
+      Type: AWS::Kinesis::Stream
+      Properties: 
+        Name: DevOpsHealthCheckStream
+        ShardCount: 1
 
 
 #    Repository:

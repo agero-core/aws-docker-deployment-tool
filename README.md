@@ -13,23 +13,27 @@
 
 ##  Resources created by this serverless template
 
-	1) DynamoDB
-		a) DynamoECSInventoryNonProd:
-			This Dyanmo Table will have inventory of all Non Production Applications with Application Name and URL as primary attributes
-		b) DynamoECSInventoryProd:
-			This Dyanmo Table will have inventory of all Production Applications with Application Name and URL as primary attributes
+	1. DynamoDB
+	   - DynamoECSInventoryNonProd:
+		 - This Dyanmo Table will have inventory of all Non Production Applications with Application Name and URL as primary attributes
+	   - DynamoECSInventoryProd:
+		 - This Dyanmo Table will have inventory of all Production Applications with Application Name and URL as primary attributes
 	
-	2) S3:
-		a) Modify this bucket name which will store all the images of the Application with versioning enabled on this bucket
+	2. S3
+	   - Modify this bucket name which will store all the images of the Application with versioning enabled on this bucket
 		
-	3) Lambda Functions
-		a) deployapi:
-			This Lambda Function will trigger when an object (Docker Image) is uploaded to above S3 bucket. This function will simply pull out the name and print it out.
-			Future Scope: It will create ECR, Task Definitions (Containers) and Run Services
+	3. Lambda Functions
+	   - deployapi:
+		 - This Lambda Function will trigger when an object (Docker Image) is uploaded to above S3 bucket. This function will simply pull out the name and print it out.
+		 - Future Scope: It will create ECR, Task Definitions (Containers) and Run Services
 	
-		b) healthcheckapi:
-			An healthcheckapi lambda function that will do the health check of any api
-			Ex: curl -H "Content-Type: application/json" -X POST https://<api-created-by-apigateway>/?api=<api-to-perform-healthcheck>
+	   - healthcheckapi:
+	     - An healthcheckapi lambda function that will do the health check of any api
+		 - Ex: curl -H "Content-Type: application/json" -X POST https://<api-created-by-apigateway>/?api=<api-to-perform-healthcheck>
+			
+	   - devopshealthcheckapi:
+		 - An devopshealthcheckapi lambda function that will perform healthcheck on DevOps Resources deployed and return a JSON response with the health status of each of the resources
+		 - Ex: curl -H "Content-Type: application/json" -X GET https://<api-created-by-apigateway>/<stage>/devops/health
 		
 
 
