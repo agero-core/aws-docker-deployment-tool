@@ -16,7 +16,7 @@ plugins:
 
 custom: ${file(./parameters.yml)}
 
-service: devops-resources # NOTE: update this with your service name
+service: devops-resources-demo # NOTE: update this with your service name
 
 provider:
   name: aws
@@ -27,12 +27,21 @@ provider:
     securityGroupIds:
       - ${self:custom.sg}
     subnetIds:
-      - ${self:custom.subnet}
+      - ${self:custom.subnet1}
 
 functions:
   deployapi:
-    name: deploy-${self:custom.stage}
+    name: deployapi-${self:custom.stage}
     handler: deployapi.lambda_handler
+    environment:
+      REPO_URI: ${self:custom.repouri}
+      VPC: ${self:custom.vpc}
+      ALB_SUBNET1: ${self:custom.elbsubnet1}
+      ALB_SUBNET2: ${self:custom.elbsubnet2}
+      ALB_SG: ${self:custom.elbsg}
+      SUBNET1: ${self:custom.subnet1}
+      SUBNET2: ${self:custom.subnet2}
+      SG: ${self:custom.sg}
     events:
       - s3:
          bucket: agero-serverless-api-packages-demo
@@ -62,6 +71,20 @@ functions:
           method: get
           integration: lambda
 
+  querydevopslogsapi:
+    name: querydevopslogs-${self:custom.stage}
+    handler: querydevopslogsapi.lambda_handler
+    timeout: 10
+    events:
+      - http:
+          path: /devops/querylogs
+          method: get
+          integration: lambda
+          request:  
+            template:
+              application/json: '{"resourcename": "$input.params(''resourcename'')", "starttime": "$input.params(''starttime'')", "endtime": "$input.params(''endtime'')"}'
+              
+
 # you can add CloudFormation resource templates here
 resources:
   Resources:
@@ -69,7 +92,7 @@ resources:
     S3:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: agero-ecs-test-buckets
+        BucketName: agero-ecs-test-bucket
         VersioningConfiguration:
           Status: Enabled
         
@@ -108,14 +131,26 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: "5"
           WriteCapacityUnits: "5"
+
+    DynamoDevOpsLogs:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: DevOpsLogsTable
+        AttributeDefinitions:
+          - AttributeName: "ResourceName"
+            AttributeType: "S"
+          - AttributeName: "Time"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "ResourceName"
+            KeyType: "HASH"
+          - AttributeName: "Time"
+            KeyType: "RANGE"
+        ProvisionedThroughput:
+          ReadCapacityUnits: "5"
+          WriteCapacityUnits: "5"
+         
           
-    DevOpsKinesisHealthCheckStream:
-      Type: AWS::Kinesis::Stream
-      Properties: 
-        Name: DevOpsHealthCheckStream
-        ShardCount: 1
-
-
 #    Repository:
 #      Type: AWS::ECR::Repository
 #      Properties: 

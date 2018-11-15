@@ -6,9 +6,14 @@
 	stage: <stage - dev/qa/stage/prod>
 	accountid: <aws account id>
 	vpc: <vpc id>
-	subnet: <subnet id>
+	subnet1: <subnet id1>
+	subnet2: <subnet id2>
+	elbsubnet1: <alb subnet id1>
+	elbsubnet2: <alb subnet id2>
 	sg: <security group id>
+	elbsg: <alb security group id>	
 	region: <aws region>
+	repouri: <ecr repository uri>
 
 
 ##  Resources created by this serverless template
@@ -28,8 +33,8 @@
 		
 	3. Lambda Functions
 	   - deployapi:
-		 - This Lambda Function will trigger when an object (Docker Image) is uploaded to above S3 bucket. This function will simply pull out the name and print it out.
-		 - Future Scope: It will create ECR, Task Definitions (Containers) and Run Services
+		 - This Lambda Function will trigger when an object (Docker Image) is uploaded to above S3 bucket. This function will deploy services with the name of the application provided as the package name.
+		 - It creates Application LoadBalancer, two Target Groups (Blue and Green) running behind the same ALB, Task Definitions (Containers) and Runs Two Services as Blue and Green
 	
 	   - healthcheckapi:
 	     - An healthcheckapi lambda function that will do the health check of any api
