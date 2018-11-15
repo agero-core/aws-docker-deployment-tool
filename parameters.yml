@@ -1,9 +1,13 @@
 #parameters.yml
-apiname: <api name>
-stage: <stage - dev/qa/stage/prod>
-accountid: <aws account id>
-vpc: <vpc id>
-subnet: <subnet id>
-sg: <security group id>
-region: <aws region>
-
+apiname: <api-name>
+stage: <stage-type>
+accountid: <account-id>
+vpc: <vpc-id>
+subnet1: <subnet1-id>
+subnet2: <subnet2-id>
+elbsubnet1: <alb-subnet1-id>
+elbsubnet2: <alb-subnet2-id>
+sg: <Security Group>
+elbsg: <ALB Security Group>
+region: <region-name>
+repouri: <ECR Repo URI>
