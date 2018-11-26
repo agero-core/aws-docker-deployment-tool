@@ -18,47 +18,47 @@
 
 ##  Resources created by this serverless template
 
-	1. API Gateway
-	   **<api>/dev/createstack/**
-	     - Parameters to be passed
-		   - applicationname
-		   - email
-		   - NonProd : Required Values: dev,qa,stage (Values must be seperated by ',' and if empty dev will be provisioned by default
-		   - Prod : Required Values - Yes or No
-		   - Train : Required Values - Yes or No
-		   - ageroservice
-		   - tier
-		   - compliancetype
-		   - technicalteam
-		   - businessteam
-		   - classificationlabel
+#	   API Gateway
+	   1. <api>/dev/createstack/**
+	      - Parameters to be passed
+		    - applicationname
+		    - email
+		    - NonProd : Required Values: dev,qa,stage (Values must be seperated by ',' and if empty dev will be provisioned by default
+		    - Prod : Required Values - Yes or No
+		    - Train : Required Values - Yes or No
+		    - ageroservice
+		    - tier
+		    - compliancetype
+		    - technicalteam
+		    - businessteam
+		    - classificationlabel
 		 - Triggers: createstackapi Lambda handler
 		   
-	   **<api>/dev/deploy/**
-	     - Parameters to be passed	   
-	       - application : Application Name
-		   - environment : Values like dev,qa,stage (seperated by ',')
-		   - repouri : Repouri that gets created when image is pushed
-	     - Triggers: ecs_deployapi Lambda handler
+	   2. <api>/dev/deploy/**
+	      - Parameters to be passed	   
+	        - application : Application Name
+		    - environment : Values like dev,qa,stage (seperated by ',')
+		    - repouri : Repouri that gets created when image is pushed
+	      - Triggers: ecs_deployapi Lambda handler
 	   
-	   **<api>/dev/deletestack/**
-	     - Parameters to be passed	   
-	       - stack : Name of the stack to be deleted
-		 - Triggers: deletestackapi Lambda handler
+	   3. <api>/dev/deletestack/**
+	      - Parameters to be passed	   
+	        - stack : Name of the stack to be deleted
+		  - Triggers: deletestackapi Lambda handler
 		 
-	   **<api>/dev/**
-	     - Parameters to be passed	  
-	       - api : API Health URL to perform health check
-		 - Triggers: healthcheckapi Lambda handler
+	   4. <api>/dev/**
+	      - Parameters to be passed	  
+	        - api : API Health URL to perform health check
+		  - Triggers: healthcheckapi Lambda handler
 		 
-	   **<api>/dev/devops/querylogs**
-	     - Parameters to be passed	   
-	       - resourcename : Name of the Lambda resource deployed
-		   - starttime : Time to start retrieving logs from. Format: yyyy-mm-dd hh:mm:ss
-		   - endtime : Time till which logs needs to be retrieved from. Format: yyyy-mm-dd hh:mm:ss
-	     - Triggers: querydevopslogsapi Lambda handler
+	   5. <api>/dev/devops/querylogs**
+	      - Parameters to be passed	   
+	        - resourcename : Name of the Lambda resource deployed
+		    - starttime : Time to start retrieving logs from. Format: yyyy-mm-dd hh:mm:ss
+		    - endtime : Time till which logs needs to be retrieved from. Format: yyyy-mm-dd hh:mm:ss
+	      - Triggers: querydevopslogsapi Lambda handler
 		   
-	2. DynamoDB
+#     DynamoDB
 	   - DynamoECSInventoryNonProd:
 		 - This Dyanmo Table will have inventory of all Non Production Applications with Application Name and URL as primary attributes
 		 
@@ -68,10 +68,10 @@
 	   - DevOpsLogsTable
 	     - This Table will contain all the logs for lambda functions deployed under devops resources with the message and appropriate timestamp
 	
-	3. S3
+#     S3
 	   - Modify this bucket name which will store all the images of the Application with versioning enabled on this bucket
 		
-	4. Lambda Functions
+#     Lambda Functions
 	   - createstackapi:
 	     - This lambda function will be triggered by the API and will create the application stack for developers.
 		 - It creates application load balancer for the desired environments 
