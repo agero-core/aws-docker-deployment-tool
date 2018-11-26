@@ -1,19 +1,21 @@
 import boto3
-import datetime
 import json
+import datetime
 import os
 
-ecr_client = boto3.client('ecr')
 ecs_client = boto3.client('ecs')
 alb = boto3.client('elbv2')
 dynamo_client = boto3.client('dynamodb')
+resource = boto3.resource('dynamodb')
+table = resource.Table('ECS_Inventory_NonProduction')
+
 
 # CREATING ECS TASK DEFINITION
-def create_taskdefinitions(apiname, repo_uri, prod_type):
+def create_taskdefinitions(apiname, repo_uri, env):
 
     try:
         container = {
-            'name': apiname + '-' + prod_type,
+            'name': apiname + '-' + env,
             'image': repo_uri,
             'portMappings': [
                 {
@@ -26,7 +28,7 @@ def create_taskdefinitions(apiname, repo_uri, prod_type):
         }
 
         resp = ecs_client.register_task_definition(
-            family = apiname,
+            family = apiname + '-' + env,
             taskRoleArn = 'ecsTaskExecutionRole',
             executionRoleArn = 'ecsTaskExecutionRole',
             networkMode = 'awsvpc',
@@ -36,7 +38,7 @@ def create_taskdefinitions(apiname, repo_uri, prod_type):
             memory= "512"
         )
         print resp
-        message = "Created Task Definiton " + apiname + '-' + prod_type
+        message = "Created Task Definiton " + apiname + '-' + env
         print message
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
@@ -48,57 +50,14 @@ def create_taskdefinitions(apiname, repo_uri, prod_type):
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
         print resp
-
-
-# CREATING APPLICATION LOAD BALANCER
-def create_albs(apiname, alb_subnet1, alb_subnet2, alb_sg):
-
-    try:
-        alb_resp = alb.create_load_balancer(
-            Name = apiname,
-            Subnets = [
-                alb_subnet1,
-                alb_subnet2
-            ],
-            SecurityGroups=[
-                alb_sg
-            ],
-            Scheme='internal',
-            Tags=[
-                {
-                    'Key': 'Name',
-                    'Value': apiname
-                }
-            ],
-            Type='application',
-            IpAddressType='ipv4'
-        )
-
-        print alb_resp
-        alb_arn = alb_resp['LoadBalancers'][0]['LoadBalancerArn']
-        message = "Created ALB " + apiname + " with ARN: " + alb_arn
-        print message
-        time = datetime.datetime.now()
-        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
-        print resp
-
-    except Exception as e:
-        message = e
-        print message
-        time = datetime.datetime.now()
-        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
-        print resp
-
-    return alb_arn
-
 
 
 # CREATE TARGET GROUPS
-def create_targetgroups(apiname, prod_type, vpc):
+def create_targetgroups(apiname, env, vpc):
 
     try:
         response = alb.create_target_group(
-            Name=apiname + '-' + prod_type,
+            Name=apiname + '-' + env,
             Protocol='HTTP',
             Port=80,
             VpcId=vpc,
@@ -117,7 +76,7 @@ def create_targetgroups(apiname, prod_type, vpc):
 
         print response
         targetgp_arn = response['TargetGroups'][0]['TargetGroupArn']
-        message = "Created Target Gtoup " + apiname+ "-" + prod_type + " with ARN: " + targetgp_arn
+        message = "Created Target Gtoup " + apiname + "-" + env + " with ARN: " + targetgp_arn
         print message
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
@@ -132,14 +91,10 @@ def create_targetgroups(apiname, prod_type, vpc):
 
     return targetgp_arn
 
-
 # ADD LISTENERS
-def add_listeners(alb_arn, targetgp_arn, prod_type):
+def add_listeners(alb_arn, targetgp_arn, env):
     try:
-        if 'green' in prod_type:
-            port = 80
-        else:
-            port = 8080
+        port = 80
         listener_response = alb.create_listener(
             LoadBalancerArn = alb_arn,
             Protocol = 'HTTP',
@@ -166,16 +121,16 @@ def add_listeners(alb_arn, targetgp_arn, prod_type):
 
 
 # CREATING ECS SERVICE
-def create_service(apiname, targetgp_arn, prod_type, subnet1, subnet2, sg):
+def create_service(apiname, targetgp_arn, env, subnet1, subnet2, sg, techteam):
     try:
         ecs_resp = ecs_client.create_service(
-            cluster='default',
-            serviceName=apiname + '-' + prod_type,
-            taskDefinition=apiname,
+            cluster=techteam,
+            serviceName=apiname + '-' + env,
+            taskDefinition=apiname + '-' + env,
             loadBalancers = [
                 {
                     'targetGroupArn': targetgp_arn,
-                    'containerName': apiname + '-' + prod_type,
+                    'containerName': apiname + '-' + env,
                     'containerPort': 80
 
                 }
@@ -201,7 +156,7 @@ def create_service(apiname, targetgp_arn, prod_type, subnet1, subnet2, sg):
             }
         )
         print ecs_resp
-        message = "Adding Service " + apiname + '-' + prod_type
+        message = "Adding Service " + apiname + '-' + env
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
         print resp
@@ -212,70 +167,57 @@ def create_service(apiname, targetgp_arn, prod_type, subnet1, subnet2, sg):
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
         print resp
 
+def get_albarn(appname, env):
+    alb_name = appname + '-' + env
+    response = alb.describe_load_balancers(Names=[alb_name])
+    alb_arn = response['LoadBalancers'][0]['LoadBalancerArn']
+    return alb_arn
+
+
 
 def lambda_handler(event, context):
-    print event
+    appname = event['application']
+    environment = event['environment']
+    repo_uri = event['repouri']
 
-    try:
-        record = event["Records"][0]
-    except KeyError:
-        time = datetime.datetime.now()
-        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
-        print resp
-
-
-    try:
-        package = record["s3"]["object"]["key"]
-        print package
-        message = package + " Retrieved"
-        time = datetime.datetime.now()
-        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
-    except KeyError:
-        time = datetime.datetime.now()
-        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'ecs_deployapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
-
-
-    apiname = package.replace(".zip","")
-    apiname = apiname.replace("_", "-")
-    apiname = apiname.lower()
-    repo_uri = os.environ['REPO_URI']
     vpc = os.environ['VPC']
     subnet1 = os.environ['SUBNET1']
     subnet2 = os.environ['SUBNET2']
     sg = os.environ['SG']
-    alb_subnet1 = os.environ['ALB_SUBNET1']
-    alb_subnet2 = os.environ['ALB_SUBNET2']
-    alb_sg = os.environ['ALB_SG']
 
-    #CREATE ALB
-    alb_arn = create_albs(apiname, alb_subnet1, alb_subnet2, alb_sg)
+    environment = environment.split(',')
+    for i in environment:
+        env = i.upper()
+        try:
+            resp = table.query(KeyConditionExpression=Key('ApplicationName').eq(appname) & Key('Environment').eq(env))
+            if resp['Count'] == 0:
+                message = appname + " does not exist. You must create the Stack first"
+                return {
+                    "Status" : message
+                }
+        except Exception as e: 
+            message = e
+        
+        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': env}}, AttributesToGet=['TechnicalTeam'])
+        techteam = dynamo_response['Item']['TechnicalTeam']['S']           
+        print techteam 
 
-    #BLUE DEPLOYMENT
-    message = "Deploying " + apiname + " to BLUE"
-    time = datetime.datetime.now()
-    resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
-    print resp
-    prod_type = 'prod-blue'
-    create_taskdefinitions(apiname, repo_uri, prod_type)
-    targetgp_arn = create_targetgroups(apiname, prod_type, vpc)
-    add_listeners(alb_arn, targetgp_arn, prod_type)
-    create_service(apiname, targetgp_arn, prod_type, subnet1, subnet2, sg)
+        env = env.lower()
 
-    #GREEN DEPLOYMENT
-    prod_type = 'prod-green'
-    message = "Deploying " + apiname + " to GREEN"
-    time = datetime.datetime.now()
-    resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
-    print resp
-    create_taskdefinitions(apiname, repo_uri, prod_type)
-    targetgp_arn = create_targetgroups(apiname, prod_type, vpc)
-    add_listeners(alb_arn, targetgp_arn, prod_type)
-    create_service(apiname, targetgp_arn, prod_type, subnet1, subnet2, sg)
+        message = "Deploying to " + appname + "-" + env
+        time = datetime.datetime.now()
+        resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
+        print resp
 
+        alb_arn = get_albarn(appname, env)
+        create_taskdefinitions(appname, repo_uri, env)
+        targetgp_arn = create_targetgroups(appname, env, vpc)
+        add_listeners(alb_arn, targetgp_arn, env)
+        create_service(appname, targetgp_arn, env, subnet1, subnet2, sg, techteam)
 
+    return {
+        "Status" : "Deployed " + appname + "-" + env 
+    }
+        
 
-# CREATING ECS REPOSITORY
-# response = ecr_client.create_repository(repositoryName=apiname)
-# print response
-# repo_uri = response['repository']['repositoryUri']
-
+    

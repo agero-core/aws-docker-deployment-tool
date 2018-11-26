@@ -11,3 +11,6 @@ sg: <Security Group>
 elbsg: <ALB Security Group>
 region: <region-name>
 repouri: <ECR Repo URI>
+cftemplate: <CF-Template-Stored-in-S3>
+imagebucket: <Bucket to Store Image>
+cfbucket: <Bucket Storing CF Template>

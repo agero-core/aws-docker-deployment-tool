@@ -30,23 +30,6 @@ provider:
       - ${self:custom.subnet1}
 
 functions:
-  deployapi:
-    name: deployapi-${self:custom.stage}
-    handler: deployapi.lambda_handler
-    environment:
-      REPO_URI: ${self:custom.repouri}
-      VPC: ${self:custom.vpc}
-      ALB_SUBNET1: ${self:custom.elbsubnet1}
-      ALB_SUBNET2: ${self:custom.elbsubnet2}
-      ALB_SG: ${self:custom.elbsg}
-      SUBNET1: ${self:custom.subnet1}
-      SUBNET2: ${self:custom.subnet2}
-      SG: ${self:custom.sg}
-    events:
-      - s3:
-         bucket: agero-serverless-api-packages-demo
-         event: s3:ObjectCreated:*  
-
   healthcheckapi:
     name: healthcheck-${self:custom.stage}
     handler: healthcheckapi.lambda_handler
@@ -84,6 +67,59 @@ functions:
             template:
               application/json: '{"resourcename": "$input.params(''resourcename'')", "starttime": "$input.params(''starttime'')", "endtime": "$input.params(''endtime'')"}'
               
+  createstackapi:
+    name: createstackapi
+    handler: createstackapi.lambda_handler
+    timeout: 900
+    environment:
+      CF_TEMPLATE: ${self:custom.cftemplate}
+      ALB_SUBNET1: ${self:custom.elbsubnet1}
+      ALB_SUBNET2: ${self:custom.elbsubnet2}
+      ALB_SG: ${self:custom.elbsg}
+      SUBNET1: ${self:custom.subnet1}
+      SUBNET2: ${self:custom.subnet2}
+      SG: ${self:custom.sg}     
+    events:
+      - http:
+          path: /createstack
+          method: post
+          integration: lambda
+          request:
+            template:
+              application/json: '{"applicationname": "$input.params(''applicationname'')", "description": "$input.params(''description'')", "application": "$input.params(''application'')", "email": "$input.params(''email'')", "NonProd": "$input.params(''NonProd'')", "Prod": "$input.params(''Prod'')", "Train": "$input.params(''Train'')", "ageroservice": "$input.params(''ageroservice'')", "tier": "$input.params(''tier'')", "compliancetype": "$input.params(''compliancetype'')", "technicalteam": "$input.params(''technicalteam'')", "businessteam": "$input.params(''businessteam'')", "classificationlabel": "$input.params(''classificationlabel'')"}'
+              
+  deletestackapi:
+    name: deletestackapi-${self:custom.stage}
+    handler: deletestackapi.lambda_handler
+    timeout: 10
+    events:
+      - http:
+          path: /deletestack
+          method: post
+          integration: lambda
+          request:
+            template:
+              application/json: '{"stack": "$input.params(''stack'')"}'
+  
+  ecsdeployapi:
+    name: ecsdeployapi-${self:custom.stage}
+    handler: ecs_deployapi.lambda_handler
+    timeout: 300
+    environment:
+      REPO_URI: ${self:custom.repouri}
+      VPC: ${self:custom.vpc}
+      SUBNET1: ${self:custom.subnet1}
+      SUBNET2: ${self:custom.subnet2}
+      SG: ${self:custom.sg}
+    events:
+      - http:
+          path: /deploy
+          method: post
+          integration: lambda
+          request:
+            template:
+              application/json: '{"application": "$input.params(''application'')", "environment": "$input.params(''environment'')", "repouri": "$input.params(''repouri'')"}'
+      
 
 # you can add CloudFormation resource templates here
 resources:
@@ -92,23 +128,30 @@ resources:
     S3:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: agero-ecs-test-bucket
+        BucketName: ${self:custom.imagebucket}
+        VersioningConfiguration:
+          Status: Enabled
+          
+    AgeroECSCFTemplateS3:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.cfbucket}
         VersioningConfiguration:
           Status: Enabled
         
     DynamoECSInventoryNonProd:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ECS_Inventory_NonProd
+        TableName: ECS_Inventory_NonProduction
         AttributeDefinitions:
           - AttributeName: "ApplicationName"  
             AttributeType: "S"
-          - AttributeName: "URL"
+          - AttributeName: "Environment"
             AttributeType: "S"
         KeySchema:
           - AttributeName: "ApplicationName"
             KeyType: "HASH"
-          - AttributeName: "URL"
+          - AttributeName: "Environment"
             KeyType: "RANGE"      
         ProvisionedThroughput:
           ReadCapacityUnits: "5"
@@ -117,16 +160,16 @@ resources:
     DynamoECSInventoryProd:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ECS_Inventory_Prod
+        TableName: ECS_Inventory_Production
         AttributeDefinitions:
           - AttributeName: "ApplicationName"
             AttributeType: "S"
-          - AttributeName: "URL"
+          - AttributeName: "Environment"
             AttributeType: "S"
         KeySchema:
           - AttributeName: "ApplicationName"
             KeyType: "HASH"
-          - AttributeName: "URL"
+          - AttributeName: "Environment"
             KeyType: "RANGE"
         ProvisionedThroughput:
           ReadCapacityUnits: "5"
