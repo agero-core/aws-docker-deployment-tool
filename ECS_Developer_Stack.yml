@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: Configure and launch the AWS Elastic Container Service
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  Application:
+    Type: String
+    AllowedValues:
+      - New Application
+      - Existing Application
+    Description: Application New/Existing
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health
+  DevEnvironment:
+    Type: String
+    Description: Do you want to create an DEV Environment?
+    AllowedValues:
+      - DEV
+      - None
+    Default: DEV
+  QAEnvironment:
+    Type: String
+    Description: Do you want to create an QA Environment?
+    AllowedValues:
+      - QA
+      - None
+    Default: None
+  StageEnvironment:
+    Type: String
+    Description: Do you want to create an STAGE Environment?
+    AllowedValues:
+      - STAGE
+      - None
+    Default: None    
+  ProdEnvironment:
+    Type: String
+    Description: Do you want to create an PROD Environment?
+    AllowedValues:
+      - PROD
+      - None
+    Default: None
+  TrainEnvironment:
+    Type: String
+    Description: Do you want to create an TRAINING Environment?
+    AllowedValues:
+      - TRAINING
+      - None
+    Default: None
+  TeamName:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - Team1
+      - Team2
+      - Team3
+      
+  ALBSubnetAZ1:
+    Type: String
+    Description: First Subnet for Application LoadBalancer
+    
+  ALBSubnetAZ2:
+    Type: String
+    Description: Second Subnet for Application LoadBalancer
+    
+  ALBSG1:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  SG1:
+    Type: String
+    Description: SecurityGroup
+    
+    
+Conditions:
+  NewApplication: !Equals
+    - !Ref Application
+    - NewApplication
+  ExistingApplication: !Equals
+    - !Ref Application
+    - ExistingApplication
+  CreateDev: !Equals
+    - !Ref DevEnvironment
+    - DEV
+  CreateQA: !Equals
+    - !Ref QAEnvironment
+    - QA
+  CreateStage: !Equals
+    - !Ref StageEnvironment
+    -  STAGE
+  CreateProd: !Equals
+    - !Ref ProdEnvironment
+    - PROD
+  CreateTrain: !Equals
+    - !Ref TrainEnvironment
+    - TRAINING
+  
+    
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref ApplicationName
+        
+  DEVECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateDev
+    Properties:
+      Scheme: internal
+      Subnets: 
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
+      SecurityGroups:
+        - !Ref ALBSG1
+      Tags:
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: DEV
+      
+  QAECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateQA
+    Properties:
+      Scheme: internal
+      Subnets: 
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
+      SecurityGroups:
+        - !Ref ALBSG1
+      Tags:
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: QA
+
+  STAGEECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateStage
+    Properties:
+      Scheme: internal
+      Subnets: 
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
+      SecurityGroups:
+        - !Ref ALBSG1
+      Tags:
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: STAGE
+
+  PRODECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateProd
+    Properties:
+      Scheme: internal
+      Subnets: 
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
+      SecurityGroups:
+        - !Ref ALBSG1
+      Tags:
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: PROD 
+
+  TRAININGECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateTrain
+    Properties:
+      Scheme: internal
+      Subnets: 
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
+      SecurityGroups:
+        - !Ref ALBSG1
+      Tags:
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: TRAINING          
+        
+   
