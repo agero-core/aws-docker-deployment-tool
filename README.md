@@ -19,7 +19,7 @@
 ##  Resources created by this serverless template
 
 	1. API Gateway
-	   - **/dev/createstack/**
+	   **<api>/dev/createstack/**
 	     - Parameters to be passed
 		   - applicationname
 		   - email
@@ -34,24 +34,24 @@
 		   - classificationlabel
 		 - Triggers: createstackapi Lambda handler
 		   
-	   - **/dev/deploy/**
+	   **<api>/dev/deploy/**
 	     - Parameters to be passed	   
 	       - application : Application Name
 		   - environment : Values like dev,qa,stage (seperated by ',')
 		   - repouri : Repouri that gets created when image is pushed
 	     - Triggers: ecs_deployapi Lambda handler
 	   
-	   - **/dev/deletestack/**
+	   **<api>/dev/deletestack/**
 	     - Parameters to be passed	   
 	       - stack : Name of the stack to be deleted
 		 - Triggers: deletestackapi Lambda handler
 		 
-	   - **/dev/
+	   **<api>/dev/**
 	     - Parameters to be passed	  
 	       - api : API Health URL to perform health check
 		 - Triggers: healthcheckapi Lambda handler
 		 
-	   - **/dev/devops/querylogs**
+	   **<api>/dev/devops/querylogs**
 	     - Parameters to be passed	   
 	       - resourcename : Name of the Lambda resource deployed
 		   - starttime : Time to start retrieving logs from. Format: yyyy-mm-dd hh:mm:ss
