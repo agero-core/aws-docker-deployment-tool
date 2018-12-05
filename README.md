@@ -74,10 +74,6 @@ functions:
  * [POST /dev/stacks/swapProdBlueAndGreen](swapbluegreen.md)
  * [DELETE /dev/stacks](deletestack.md)
 
-### **DevOps Endpoints**
-* [GET /dev/devops/health](devopshealthcheck.md)
-* [GET /dev/devops/querylogs](querylogs.md)
-
 ***
 
 ## **Additional Resources**
