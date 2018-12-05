@@ -18,8 +18,14 @@ def lambda_handler(event, context):
 
     resp = table.query(KeyConditionExpression=Key("ResourceName").eq(res_name) & Key("Time").between(starttime, endtime))
     print resp
-    return resp
-
-
-
+    status_code = 200
+    message = {"meesage": resp}
+    return {
+            'statusCode': str(status_code),
+            'body': json.dumps(message),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+                }
+            }
 

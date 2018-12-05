@@ -96,9 +96,12 @@ def lambda_handler(event, context):
     resp = dynamo.put_item(TableName="DevOpsLogsTable", Item={'ResourceName':{'S': 'devopshealthcheckapi'}, 'Time':{'S': str(time)}, 'Message': {'S': message}})
 
     print json.dumps(status, indent=4, sort_keys=True)
-    return json.dumps(status, indent=4, sort_keys=True)
-
-
-    
-    
-    
+    status_code = 200
+    return {
+            'statusCode': str(status_code),
+            'body': json.dumps(status),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+                }
+            }

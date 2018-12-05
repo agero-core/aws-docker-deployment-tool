@@ -121,42 +121,17 @@ def add_listeners(alb_arn, targetgp_arn, env):
 
 
 # CREATING ECS SERVICE
-def create_service(apiname, targetgp_arn, env, subnet1, subnet2, sg, techteam):
+def update_service(apiname, env, subnet1, subnet2, sg, techteam):
     try:
-        ecs_resp = ecs_client.create_service(
+        ecs_resp = ecs_client.update_service(
             cluster=techteam,
-            serviceName=apiname + '-' + env,
+            service=apiname + '-' + env,
             taskDefinition=apiname + '-' + env,
-            loadBalancers = [
-                {
-                    'targetGroupArn': targetgp_arn,
-                    'containerName': apiname + '-' + env,
-                    'containerPort': 80
-
-                }
-            ],
             desiredCount=1,
-            launchType='FARGATE',
-            schedulingStrategy='REPLICA',
-            deploymentConfiguration={
-                'maximumPercent': 100,
-                'minimumHealthyPercent': 50
-            },
-            networkConfiguration={
-                'awsvpcConfiguration': {
-                    'subnets': [
-                        subnet1,
-                        subnet2
-                    ],
-                    'securityGroups': [
-                        sg
-                    ],
-                    'assignPublicIp': 'DISABLED'
-                }
-            }
+            healthCheckGracePeriodSeconds=30
         )
         print ecs_resp
-        message = "Adding Service " + apiname + '-' + env
+        message = "Updating Service " + apiname + '-' + env + ' for new taskDefinition '
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
         print resp
@@ -176,25 +151,118 @@ def get_albarn(appname, env):
 
 
 def lambda_handler(event, context):
-    appname = event['application']
-    environment = event['environment']
-    repo_uri = event['repouri']
+    body = json.loads(event['body'])
+    print body
+
+    try:
+        appname = body['applicationName']
+        if appname == "":
+            status_code = 400
+            message = {"errorMessage": "applicationName cannot be empty"}
+            return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
+    except KeyError:
+        status_code = 400
+        message = {"errorMessage": "applicationName needs to be mentioned"}
+        return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
+
+    try:
+        environment = body['environment']
+    except KeyError:
+        status_code = 400
+        message = {"errorMessage": "environment needs to be mentioned"}
+        return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }    
+
+    try:
+        repo_uri = body['repouri']
+        if repo_uri == "":
+            status_code = 400
+            message = {"errorMessage": "repouri cannot be empty"}
+            return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }    
+    except KeyError:
+        status_code = 400
+        message = {"errorMessage": "repouri needs to be mentioned"}
+        return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }    
+
+    try:
+        version = body['version']
+        if version == "":
+            status_code = 400
+            message = {"errorMessage": "version cannot be empty"}
+            return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
+    except KeyError:
+        status_code = 400
+        message = {"errorMessage": "version needs to be mentioned"}
+        return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
 
     vpc = os.environ['VPC']
     subnet1 = os.environ['SUBNET1']
     subnet2 = os.environ['SUBNET2']
     sg = os.environ['SG']
 
-    environment = environment.split(',')
     for i in environment:
         env = i.upper()
         try:
             resp = table.query(KeyConditionExpression=Key('ApplicationName').eq(appname) & Key('Environment').eq(env))
             if resp['Count'] == 0:
-                message = appname + " does not exist. You must create the Stack first"
+                status_code = 409
+                message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
                 return {
-                    "Status" : message
-                }
+                        'statusCode': str(status_code),
+                        'body': json.dumps(message),
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                            }
+                        }        
         except Exception as e: 
             message = e
         
@@ -204,20 +272,28 @@ def lambda_handler(event, context):
 
         env = env.lower()
 
-        message = "Deploying to " + appname + "-" + env
+        message = "Deploying version " + version + " to " + appname + "-" + env
         time = datetime.datetime.now()
         resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
         print resp
 
-        alb_arn = get_albarn(appname, env)
+        #alb_arn = get_albarn(appname, env)
         create_taskdefinitions(appname, repo_uri, env)
-        targetgp_arn = create_targetgroups(appname, env, vpc)
-        add_listeners(alb_arn, targetgp_arn, env)
-        create_service(appname, targetgp_arn, env, subnet1, subnet2, sg, techteam)
+        #targetgp_arn = create_targetgroups(appname, env, vpc)
+        #add_listeners(alb_arn, targetgp_arn, env)
+        update_service(appname, env, subnet1, subnet2, sg, techteam)
 
+        time = datetime.datetime.now()
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName': {'S': appname}, 'Environment': {'S': env.upper()}, 'TechnicalTeam': {'S': techteam}, 'Version': {'S': version}, 'Time': {'S': str(time)}})
+        print resp    
+
+    message = {"message" : "Deployed version " + version + " to " + appname}
     return {
-        "Status" : "Deployed " + appname + "-" + env 
-    }
+        "statusCode": "200",
+        "body" : json.dumps(message),
+        "headers": {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+            }
+        }
         
-
-    
