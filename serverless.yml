@@ -13,7 +13,6 @@
 
 plugins:
   - serverless-python-requirements
-
 custom: ${file(./parameters.yml)}
 
 service: devops-resources-demo # NOTE: update this with your service name
@@ -30,6 +29,23 @@ provider:
       - ${self:custom.subnet1}
 
 functions:
+  deployapi:
+    name: deployapi-${self:custom.stage}
+    handler: deployapi.lambda_handler
+    environment:
+      REPO_URI: ${self:custom.repouri}
+      VPC: ${self:custom.vpc}
+      ALB_SUBNET1: ${self:custom.elbsubnet1}
+      ALB_SUBNET2: ${self:custom.elbsubnet2}
+      ALB_SG: ${self:custom.elbsg}
+      SUBNET1: ${self:custom.subnet1}
+      SUBNET2: ${self:custom.subnet2}
+      SG: ${self:custom.sg}
+    events:
+      - s3:
+         bucket: agero-serverless-api-packages-demo
+         event: s3:ObjectCreated:*  
+
   healthcheckapi:
     name: healthcheck-${self:custom.stage}
     handler: healthcheckapi.lambda_handler
@@ -73,33 +89,30 @@ functions:
     timeout: 900
     environment:
       CF_TEMPLATE: ${self:custom.cftemplate}
+      VPC: ${self:custom.vpc}
       ALB_SUBNET1: ${self:custom.elbsubnet1}
       ALB_SUBNET2: ${self:custom.elbsubnet2}
       ALB_SG: ${self:custom.elbsg}
       SUBNET1: ${self:custom.subnet1}
       SUBNET2: ${self:custom.subnet2}
-      SG: ${self:custom.sg}     
+      SG: ${self:custom.sg}
+      REPO_URI: ${self:custom.repouri}
+      HOSTEDZONE_NAME: ${self:custom.hostedzonename}     
     events:
       - http:
-          path: /createstack
+          path: /stacks
           method: post
-          integration: lambda
-          request:
-            template:
-              application/json: '{"applicationname": "$input.params(''applicationname'')", "description": "$input.params(''description'')", "application": "$input.params(''application'')", "email": "$input.params(''email'')", "NonProd": "$input.params(''NonProd'')", "Prod": "$input.params(''Prod'')", "Train": "$input.params(''Train'')", "ageroservice": "$input.params(''ageroservice'')", "tier": "$input.params(''tier'')", "compliancetype": "$input.params(''compliancetype'')", "technicalteam": "$input.params(''technicalteam'')", "businessteam": "$input.params(''businessteam'')", "classificationlabel": "$input.params(''classificationlabel'')"}'
+          cors: true
               
   deletestackapi:
     name: deletestackapi-${self:custom.stage}
     handler: deletestackapi.lambda_handler
-    timeout: 10
+    timeout: 120
     events:
       - http:
-          path: /deletestack
-          method: post
-          integration: lambda
-          request:
-            template:
-              application/json: '{"stack": "$input.params(''stack'')"}'
+          path: /stacks
+          method: delete
+          cors: true
   
   ecsdeployapi:
     name: ecsdeployapi-${self:custom.stage}
@@ -113,13 +126,45 @@ functions:
       SG: ${self:custom.sg}
     events:
       - http:
-          path: /deploy
+          path: /stacks/deploytononProd
           method: post
-          integration: lambda
-          request:
-            template:
-              application/json: '{"application": "$input.params(''application'')", "environment": "$input.params(''environment'')", "repouri": "$input.params(''repouri'')"}'
-      
+          cors: true
+
+  ecsdeployprodblueapi:
+    name: ecsdeploy_prodblueapi
+    handler: ecs_deploy_prodblue.lambda_handler
+    timeout: 10
+    environment:
+      REPO_URI: ${self:custom.repouri}
+      VPC: ${self:custom.vpc}
+      SUBNET1: ${self:custom.subnet1}
+      SUBNET2: ${self:custom.subnet2}
+      SG: ${self:custom.sg}
+    events:
+      - http:
+          path: /stacks/deploytoprodBlue
+          method: post
+          cors: true       
+
+  swapprodapi:
+    name: swapprodapi
+    handler: swapprod.lambda_handler
+    timeout: 10
+    events:
+      - http:
+          path: /stacks/swapProdBlueAndGreen
+          method: post
+          cors: true
+
+  testapi:
+    name: testfortest
+    handler: testfortest.lambda_handler
+    timeout: 10
+    events:
+      - http:
+          path: /test
+          method: post
+          cors: true
 
 # you can add CloudFormation resource templates here
 resources:
@@ -128,14 +173,14 @@ resources:
     S3:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${self:custom.imagebucket}
+        BucketName: agero-ecs-test-bucket
         VersioningConfiguration:
           Status: Enabled
           
     AgeroECSCFTemplateS3:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${self:custom.cfbucket}
+        BucketName: agero-ecs-cf-template
         VersioningConfiguration:
           Status: Enabled
         
@@ -161,6 +206,24 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: ECS_Inventory_Production
+        AttributeDefinitions:
+          - AttributeName: "ApplicationName"
+            AttributeType: "S"
+          - AttributeName: "Environment"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "ApplicationName"
+            KeyType: "HASH"
+          - AttributeName: "Environment"
+            KeyType: "RANGE"
+        ProvisionedThroughput:
+          ReadCapacityUnits: "5"
+          WriteCapacityUnits: "5"
+
+    DynamoECSInventoryTrainingDA:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ECS_Inventory_Training_DA
         AttributeDefinitions:
           - AttributeName: "ApplicationName"
             AttributeType: "S"

@@ -1,16 +1,15 @@
 #parameters.yml
 apiname: <api-name>
-stage: <stage-type>
-accountid: <account-id>
+stage: <stage>
+accountid: <aws-accountid>
 vpc: <vpc-id>
 subnet1: <subnet1-id>
 subnet2: <subnet2-id>
 elbsubnet1: <alb-subnet1-id>
 elbsubnet2: <alb-subnet2-id>
-sg: <Security Group>
-elbsg: <ALB Security Group>
-region: <region-name>
-repouri: <ECR Repo URI>
-cftemplate: <CF-Template-Stored-in-S3>
-imagebucket: <Bucket to Store Image>
-cfbucket: <Bucket Storing CF Template>
+sg: <sg-id>
+elbsg: <alb-sg-id>
+region: <aws-region>
+repouri: <default-image-uri>
+cftemplate: <s3-url-for-cloudformation-template>
+hostedzonename: <hostedzonename>

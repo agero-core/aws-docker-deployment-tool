@@ -1,103 +1,99 @@
-# aws-docker-deployment-tool
+# **DevOps Model for ECS Fargate**
 
+- This DevOps model for ECS Fargate is API driven.
+- It will provision DevOps resources in AWS using serverless template and parameters file which will contain all the information related to AWS account, VPC, subnets, and so on.
+- The serverless template will give some APIs to carry out different operations related to stack creation, deployments, and deleting stacks.
+- This functionality provides APIs to make calls to and perform stack creation, deploy image to non production servers, productions servers with blue/green functionality along with training/da environments, swap blue/green environments
+and delete the stack for any application.
 
-##  Check out the parameters.yml file to fill out all the necessary parameters for the template to work
-	apiname: <api name>
-	stage: <stage - dev/qa/stage/prod>
-	accountid: <aws account id>
-	vpc: <vpc id>
-	subnet1: <subnet id1>
-	subnet2: <subnet id2>
-	elbsubnet1: <alb subnet id1>
-	elbsubnet2: <alb subnet id2>
-	sg: <security group id>
-	elbsg: <alb security group id>	
-	region: <aws region>
-	repouri: <ecr repository uri>
+***
 
+## **Requirements**
 
-##  Resources created by this serverless template
+To run this successfully the system will require to have python and serverless installed along with an AWS account.
 
-#	   API Gateway
-	   1. <api>/dev/createstack/**
-	      - Parameters to be passed
-		    - applicationname
-		    - email
-		    - NonProd : Required Values: dev,qa,stage (Values must be seperated by ',' and if empty dev will be provisioned by default
-		    - Prod : Required Values - Yes or No
-		    - Train : Required Values - Yes or No
-		    - ageroservice
-		    - tier
-		    - compliancetype
-		    - technicalteam
-		    - businessteam
-		    - classificationlabel
-		 - Triggers: createstackapi Lambda handler
-		   
-	   2. <api>/dev/deploy/**
-	      - Parameters to be passed	   
-	        - application : Application Name
-		    - environment : Values like dev,qa,stage (seperated by ',')
-		    - repouri : Repouri that gets created when image is pushed
-	      - Triggers: ecs_deployapi Lambda handler
-	   
-	   3. <api>/dev/deletestack/**
-	      - Parameters to be passed	   
-	        - stack : Name of the stack to be deleted
-		  - Triggers: deletestackapi Lambda handler
-		 
-	   4. <api>/dev/**
-	      - Parameters to be passed	  
-	        - api : API Health URL to perform health check
-		  - Triggers: healthcheckapi Lambda handler
-		 
-	   5. <api>/dev/devops/querylogs**
-	      - Parameters to be passed	   
-	        - resourcename : Name of the Lambda resource deployed
-		    - starttime : Time to start retrieving logs from. Format: yyyy-mm-dd hh:mm:ss
-		    - endtime : Time till which logs needs to be retrieved from. Format: yyyy-mm-dd hh:mm:ss
-	      - Triggers: querydevopslogsapi Lambda handler
-		   
-#     DynamoDB
-	   - DynamoECSInventoryNonProd:
-		 - This Dyanmo Table will have inventory of all Non Production Applications with Application Name and URL as primary attributes
-		 
-	   - DynamoECSInventoryProd:
-		 - This Dyanmo Table will have inventory of all Production Applications with Application Name and URL as primary attributes
-		 
-	   - DevOpsLogsTable
-	     - This Table will contain all the logs for lambda functions deployed under devops resources with the message and appropriate timestamp
-	
-#     S3
-	   - Modify this bucket name which will store all the images of the Application with versioning enabled on this bucket
-		
-#     Lambda Functions
-	   - createstackapi:
-	     - This lambda function will be triggered by the API and will create the application stack for developers.
-		 - It creates application load balancer for the desired environments 
-		 
-	   - ecs_deployapi:
-		 - This Lambda Function will triggered by the API and will deploy the image with the given repouri in the environments
-		 - It creates Target Groups and Listeners running behind the same ALB, Task Definitions (Containers) and Runs the task as Service in the given Cluster
-	
-	   - healthcheckapi:
-	     - An healthcheckapi lambda function that will do the health check of any api
-		 - Ex: curl -H "Content-Type: application/json" -X POST https://<api-created-by-apigateway>/?api=<api-to-perform-healthcheck>
-			
-	   - devopshealthcheckapi:
-		 - An devopshealthcheckapi lambda function that will perform healthcheck on DevOps Resources deployed and return a JSON response with the health status of each of the resources
-		 - Ex: curl -H "Content-Type: application/json" -X GET https://<api-created-by-apigateway>/<stage>/devops/health
-		 
-	   - querydevopslogsapi:
-	     - This lambda function will return logs for the queried function within the specified timerange for devops resources
-		 - Format of the api query:  https://<api-created-by-apigateway>/<stage>/devops/querylogs?resourcename=<lambda-function>&starttime=<yyyy-mm-dd> <hh:mm:ss>&endtime=<yyyy-mm-dd> <hh:mm:ss>
-		 
-	   - deletestackapi:
-	     - This Lambda handler will delete the stack that's provided in the parameter
+***
 
+## **Getting Started**
 
-##  Once that's done execute the following command
-	sls deploy
-	
-## Rollback the Stack
-	sls remove
+- Edit parameters.yml file
+```
+#parameters.yml
+apiname: <devops-demo>
+stage: <stage-name>
+accountid: <aws account-id>
+vpc: <vpc id>
+subnet1: <subnet-id1>
+subnet2: <subnet-id2>
+elbsubnet1: <alb-subnet-id1>
+elbsubnet2: <alb-subnet-id2>
+sg: <security-group-id>
+elbsg: <alb-security-group-id>
+region: <aws-region>
+repouri: <default-repo-uri>
+cftemplate: <s3-url-for-cloudformationtemplate>
+```
+- Run this command to deploy Serverless Architecture for DevOps
+
+```sh
+$ serverless deploy
+```
+- The output of serverless will look something like this
+
+```
+service: <resource-name>
+stage: <stage-deployed>
+region: <aws-region-name>
+stack: <cloudformation-stack-name>
+api keys:
+    None
+endpoints:
+ <METHOD> <API from API Gateway>
+ <METHOD> <API from API Gateway>
+ <METHOD> <API from API Gateway>
+functions:
+ <lambda_function>: <stackname-lambdafunction>
+ <lambda_function>: <stackname-lambdafunction>
+ <lambda_function>: <stackname-lambdafunction>
+```
+- Make note of endpoints as this will be used to make RESTful API calls 
+- These APIs can be used by developers to make following operations:
+ 1. create stack
+ 2. deploy image to non-production environments
+ 3. deploy image to production blue environment
+ 4. swap blue and green environment 
+ 5. delete stack
+ 
+ ***
+
+## **Endpoints & Back-End Lambda Functions**
+### **Developer Endpoints**
+ * [POST /dev/stacks](createstack.md)
+ * [POST /dev/stacks/deploy](deploytononprod.md)
+ * [POST /dev/stacks/deploytoprodBlue](deploytoprodblue.md)
+ * [POST /dev/stacks/swapProdBlueAndGreen](swapbluegreen.md)
+ * [DELETE /dev/stacks](deletestack.md)
+
+***
+
+## **Additional Resources**
+### **S3 Buckets**
+- ECS-Bucket
+  - The purpose of this bucket is preserved for future developments like storing images
+- ECS-CF-Bucket
+  - This bucket is used to store CloudFormation Template that is used to deploy developer resources
+  - In future it can also store custom templates based on different applications
+
+### **Dynamo Tables**
+ - ECS_Inventory_NonProduction
+   - The dyanmo table keeps records of all the new application and their non production environments been deployed.
+   - It dynamically also removes the records once the application is removed from the stack
+ - ECS_Inventory_Production
+   - The dyanmo table keeps records of all the new application and their blue & green production environments been deployed.
+   - It dynamically also removes the records once the application is removed from the stack
+  - ECS_Inventory_TrainingDA
+    - The dyanmo table keeps records of all the new application and their training and da environments been deployed.
+    - It dynamically also removes the records once the application is removed from the stack
+ - DevOpsLogsTable
+   - This table keeps track of all the devops events that are been called whenever a stack is created, application been deployed to various environments, swap between production blue and green, and whenever any resource is terminated.
+***
