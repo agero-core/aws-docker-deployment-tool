@@ -14,6 +14,7 @@ def lambda_handler(event,context):
     body = json.loads(event['body'])
     print body
     message = "Stack Creation Initiated"
+    hostedzonename = os.environ['HOSTEDZONE_NAME']
 
     try:
         applicationname = body["applicationName"]
@@ -60,7 +61,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter email is not present"}
         return {
@@ -85,7 +86,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter ageroService is not present"}
         return {
@@ -110,7 +111,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }    
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter ageroService is not present"}
         return {
@@ -135,7 +136,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter complianceType is not present"}
         return {
@@ -159,7 +160,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter businessTeam is not present"}
         return {
@@ -174,8 +175,17 @@ def lambda_handler(event,context):
     try:
         classificationlabel = body['tags']['classificationLabel']
         if classificationlabel == "":
+            status_code = 400
             message = {"errorMessage": "classificationLabel cannot be empty"}
-    except KeyError:
+            return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter classificationLabel is not present"}
         return {
@@ -200,7 +210,7 @@ def lambda_handler(event,context):
                     'Access-Control-Allow-Origin': '*'
                     }
                 }
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter technicalTeam is not present"}
         return {
@@ -215,7 +225,7 @@ def lambda_handler(event,context):
 
     try:
         NonProd = str(body['environments']['nonProd'])
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter nonProd is not present"}
         return {
@@ -229,7 +239,7 @@ def lambda_handler(event,context):
 
     try:
         Training = body['environments']['training']
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter training is not present"}
         return {
@@ -243,7 +253,7 @@ def lambda_handler(event,context):
 
     try:
         DA = body['environments']['da']
-    except KeyError:
+    except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter da is not present"}
         return {
@@ -258,40 +268,51 @@ def lambda_handler(event,context):
     if 'qa' in NonProd.lower():
         QAEnvironment = "QA"
         qa_env = "YES"
+        qa_endpoint = applicationname + ".dkr.qa." + hostedzonename
     else:
         QAEnvironment = "None"
         qa_env = "NO"
+        qa_endpoint = "N/A"
 
     if 'stage' in NonProd.lower():
         StageEnvironment = "STAGE"
         stage_env = "YES"
+        stage_endpoint = applicationname + ".dkr.stage." + hostedzonename
     else:
         StageEnvironment = "None"
         stage_env = "NO"
+        stage_endpoint = "N/A"
 
     ProdEnvironment = "PROD"
     prod_env = "YES"
+    prod_endpoint = applicationname + ".dkr.prod." + hostedzonename
 
     if Training == True:
         TrainEnvironment = "TRAINING"
         train_env = "YES"
+        train_endpoint = applicationname + ".dkr.training." + hostedzonename
     else:
         TrainEnvironment = "None"
         train_env = "NO"
+        train_endpoint = "N/A"
 
     if DA == True:
         DAEnvironment = "DA"
         da_env = "YES"
+        da_endpoint = applicationname + ".dkr.da." + hostedzonename
     else:
         DAEnvironment = "None"
         da_env = "NO"
+        da_endpoint = "N/A"
 
     if NonProd == "" or 'dev' in NonProd.lower():
         DevEnvironment = "DEV"
         dev_env = "YES"
+        dev_endpoint = applicationname + ".dkr.dev." + hostedzonename
     else:
         DevEnvironment = "None"
         dev_env = "NO"
+        dev_endpoint = "N/A"
 
     application = "New Application"
 
@@ -357,6 +378,9 @@ def lambda_handler(event,context):
                 'ParameterKey': 'DAEnvironment',
                 'ParameterValue': DAEnvironment,
             },
+            {   'ParameterKey': 'HostedZoneName',
+                'ParameterValue': hostedzonename
+            },
             {
                 'ParameterKey': 'VPC',
                 'ParameterValue': vpc,
@@ -418,7 +442,7 @@ def lambda_handler(event,context):
                 'ParameterValue': classificationlabel
             }
         ],
-        ResourceTypes = ["AWS::ECS::*", "AWS::ECR::*", "AWS::Lambda::*", "AWS::ElasticLoadBalancingV2::LoadBalancer"],
+        ResourceTypes = ["AWS::ECS::*", "AWS::ECR::*", "AWS::Lambda::*", "AWS::ElasticLoadBalancingV2::LoadBalancer", "AWS::Route53::*"],
         Tags = [
             {
                 'Key': 'Application',
@@ -456,12 +480,14 @@ def lambda_handler(event,context):
                 'Key': 'ClassificationLabel',
                 'Value': classificationlabel
             }
-        ]
+        ],
+        EnableTerminationProtection=False
     )
 
     except Exception as e:
         status_code = 400
         message = { "errorMEssage": "Stack already exists" }
+        print e
         return {
             'statusCode': str(status_code),
             'body': json.dumps(message),
@@ -502,7 +528,7 @@ def lambda_handler(event,context):
     'ecrName' : ecr_name,
     'technicalTeam' : team,
     'email' : email,
-    'environmentType' : [{'DEV': dev_env}, {'QA': qa_env}, {'STAGE': stage_env}, {'PROD': prod_env}, {'TRAINING': train_env}, {'DA': da_env}]
+    'environmentType' : [{'DEV': dev_env, 'Endpoint': dev_endpoint}, {'QA': qa_env, 'Endpoint': qa_endpoint}, {'STAGE': stage_env, 'Endpoint': stage_endpoint}, {'PROD': prod_env, 'Endpoint': prod_endpoint}, {'TRAINING': train_env, 'Endpoint': train_endpoint}, {'DA': da_env, 'Endpoint': da_endpoint}]
     }
     
     return {

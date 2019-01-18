@@ -13,7 +13,6 @@
 
 plugins:
   - serverless-python-requirements
-
 custom: ${file(./parameters.yml)}
 
 service: devops-resources-demo # NOTE: update this with your service name
@@ -97,7 +96,8 @@ functions:
       SUBNET1: ${self:custom.subnet1}
       SUBNET2: ${self:custom.subnet2}
       SG: ${self:custom.sg}
-      REPO_URI: ${self:custom.repouri}     
+      REPO_URI: ${self:custom.repouri}
+      HOSTEDZONE_NAME: ${self:custom.hostedzonename}     
     events:
       - http:
           path: /stacks
@@ -107,7 +107,7 @@ functions:
   deletestackapi:
     name: deletestackapi-${self:custom.stage}
     handler: deletestackapi.lambda_handler
-    timeout: 10
+    timeout: 120
     events:
       - http:
           path: /stacks
@@ -126,7 +126,7 @@ functions:
       SG: ${self:custom.sg}
     events:
       - http:
-          path: /stacks/deploy
+          path: /stacks/deploytononProd
           method: post
           cors: true
 

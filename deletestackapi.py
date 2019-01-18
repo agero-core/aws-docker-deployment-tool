@@ -6,6 +6,7 @@ cf = boto3.client('cloudformation')
 dynamo_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
 ecs = boto3.client('ecs')
+ecr = boto3.client('ecr')
 
 def stackexists(stackname):
     try:
@@ -214,11 +215,27 @@ def lambda_handler(event, context):
         message = str(e)
         pass
 
+    try:
+        repo_name = stackname.lower()
+        resp = ecr.delete_repository(repositoryName=repo_name, force=True)
+    except Exception as e:
+        print e
+        status_code = 403
+        message = {'message': "Error while deleting the Repository"}
+        return {
+            'statusCode': str(status_code),
+            'body': json.dumps(message),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+                }
+            }
 
     try:
         response = cf.delete_stack(StackName=stackname)
         print response
     except Exception as e:
+        print e
         status_code = 409
         message = {'message': 'Stack does not Exists'}
         return {

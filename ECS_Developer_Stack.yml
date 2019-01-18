@@ -64,44 +64,7 @@ Parameters:
     AllowedValues:
       - DA
       - None
-    Default: None    
-  TechnicalTeam:
-    Type: String
-    Description: Which Team will Own this Application?
-    AllowedValues:
-      - CoreEngineeingTeam
-      - CoreApiServices
-      - CorePlatformTeam
-      - Architecture
-      - CoreAutomationTeam
-  Tier:
-    Type: String
-    Description: Which Tier Application belongs to? 
-  ClassificationLabel:
-    Type: String
-    Description: ClassificationLabel for this Application?    
-  AgeroService:
-    Type: String
-    Description: Which AgeroService this Application belongs to?
-  BusinessTeam:
-    Type: String
-    Description: Which BusinessTeam will Own this Application?
-  ComplianceType:
-    Type: String
-    Description: Which ComplianceType will this Application belongs to?
-    
-  
-  VPC:
-    Type: String
-    Description: VPC to launch Services
-
-  RepoURI:
-    Type: String
-    Description: RepoURI where the image is stored
-    
-  ECRName:
-    Type: String
-    Description: Elastic Container Repository Name
+    Default: None
       
   ALBSubnetAZ1:
     Type: String
@@ -110,14 +73,6 @@ Parameters:
   ALBSubnetAZ2:
     Type: String
     Description: Second Subnet for Application LoadBalancer
-    
-  SUBNET1:
-    Type: String
-    Description: First Subnet for Container Service
-    
-  SUBNET2:
-    Type: String
-    Description: Second Subnet for Container Service
     
   ALBSG1:
     Type: String
@@ -151,7 +106,7 @@ Conditions:
     - !Ref TrainEnvironment
     - TRAINING
   CreateDA: !Equals
-    - !Ref DAEnvironment
+    - !Ref TrainEnvironment
     - DA
   
     
@@ -159,22 +114,19 @@ Resources:
   Repository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Ref ECRName
+      RepositoryName: !Ref ApplicationName
         
   DEVECSApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateDev
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-dev']]
       Scheme: internal
       Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-dev']]
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
@@ -184,16 +136,13 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateQA
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-qa']]
       Scheme: internal
       Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-qa']]     
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
@@ -203,16 +152,13 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateStage
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-stage']]
       Scheme: internal
       Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-stage']]
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
@@ -222,16 +168,13 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateProd
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-prod']]
       Scheme: internal
       Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-prod']]
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
@@ -241,16 +184,13 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateTrain
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-training']]
       Scheme: internal
       Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-training']]
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
@@ -260,412 +200,28 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Condition: CreateDA
     Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-da']]
       Scheme: internal
-      Subnets: 
-        - Ref: ALBSubnetAZ1
-        - Ref: ALBSubnetAZ2
+      Subnets:
+        - !Ref ALBSubnetAZ1
+        - !Ref ALBSubnetAZ2
       SecurityGroups:
-        - Ref: ALBSG1
+        - !Ref ALBSG1
       Tags:
-        - Key: Name
-          Value: !Join ['', [ !Ref ApplicationName, '-da']]
         - Key: Application
           Value: !Ref ApplicationName
         - Key: EnvironmentType
           Value: DA
 
-  DEVTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Condition: CreateDev
-    Properties: 
-      Cpu: "256"
-      ExecutionRoleArn: "ecsTaskExecutionRole"
-      Family: !Join ['', [ !Ref ApplicationName, '-dev']]
-      Memory: "512"
-      NetworkMode: "awsvpc"
-      RequiresCompatibilities:
-        - "FARGATE"
-      TaskRoleArn: "ecsTaskExecutionRole"
-      ContainerDefinitions:
-        -
-          Name: !Join ['', [ !Ref ApplicationName, '-dev']]
-          Image: !Ref RepoURI
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: "tcp"
-          Essential: "true"
-          
-  DEVTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-dev']]
-      Protocol: "HTTP"
-      Port: 80
-      VpcId: !Ref VPC
-      HealthCheckProtocol: "HTTP"
-      HealthCheckPort: "80"
-      HealthCheckPath: "/health"
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetType: "ip"
-      Matcher:
-        HttpCode: "200"
         
-  DEVALBListeners:
-    Type: AWS::ElasticLoadBalancingV2::Listener
+  DeployAPI:
+    Type: 'Custom::DeployAPI'
     Properties:
-      DefaultActions:
-        - Type: "forward"
-          TargetGroupArn: !Ref DEVTargetGroup
-      LoadBalancerArn: !Ref DEVECSApplicationLoadBalancer
-      Port: 80
-      Protocol: "HTTP"
-      
-  DEVECSService:
-    Type: AWS::ECS::Service
-    DependsOn: DEVALBListeners
-    Properties: 
-      Cluster: !Ref TechnicalTeam
-      ServiceName: !Join ['', [ !Ref ApplicationName, '-dev']]
-      TaskDefinition: !Ref DEVTaskDefinition
-      DesiredCount: "1"
-      LoadBalancers:
-        - ContainerName: !Join ['', [ !Ref ApplicationName, '-dev']]
-          ContainerPort: 80
-          TargetGroupArn: !Ref DEVTargetGroup
-      LaunchType: "FARGATE"
-      SchedulingStrategy: "REPLICA"
-      DeploymentConfiguration: 
-        MaximumPercent: 100
-        MinimumHealthyPercent: 50
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
-          SecurityGroups:
-            - !Ref SG1
-          Subnets:
-            - !Ref SUBNET1
-            - !Ref SUBNET2
-            
-  QATaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Condition: CreateQA
-    Properties: 
-      Cpu: "256"
-      ExecutionRoleArn: "ecsTaskExecutionRole"
-      Family: !Join ['', [ !Ref ApplicationName, '-qa']]
-      Memory: "512"
-      NetworkMode: "awsvpc"
-      RequiresCompatibilities:
-        - "FARGATE"
-      TaskRoleArn: "ecsTaskExecutionRole"
-      ContainerDefinitions:
-        -
-          Name: !Join ['', [ !Ref ApplicationName, '-qa']]
-          Image: !Ref RepoURI
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: "tcp"
-          Essential: "true"
-          
-  QATargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-qa']]
-      Protocol: "HTTP"
-      Port: 80
-      VpcId: !Ref VPC
-      HealthCheckProtocol: "HTTP"
-      HealthCheckPort: "80"
-      HealthCheckPath: "/health"
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetType: "ip"
-      Matcher:
-        HttpCode: "200"
-        
-  QAALBListeners:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: "forward"
-          TargetGroupArn: !Ref QATargetGroup
-      LoadBalancerArn: !Ref QAECSApplicationLoadBalancer
-      Port: 80
-      Protocol: "HTTP"
-      
-  QAECSService:
-    Type: AWS::ECS::Service
-    DependsOn: QAALBListeners
-    Properties: 
-      Cluster: !Ref TechnicalTeam
-      ServiceName: !Join ['', [ !Ref ApplicationName, '-qa']]
-      TaskDefinition: !Ref QATaskDefinition
-      DesiredCount: "1"
-      LoadBalancers:
-        - ContainerName: !Join ['', [ !Ref ApplicationName, '-qa']]
-          ContainerPort: 80
-          TargetGroupArn: !Ref QATargetGroup
-      LaunchType: "FARGATE"
-      SchedulingStrategy: "REPLICA"
-      DeploymentConfiguration: 
-        MaximumPercent: 100
-        MinimumHealthyPercent: 50
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
-          SecurityGroups:
-            - !Ref SG1
-          Subnets:
-            - !Ref SUBNET1
-            - !Ref SUBNET2            
-            
-  STAGETaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Condition: CreateStage
-    Properties: 
-      Cpu: "256"
-      ExecutionRoleArn: "ecsTaskExecutionRole"
-      Family: !Join ['', [ !Ref ApplicationName, '-stage']]
-      Memory: "512"
-      NetworkMode: "awsvpc"
-      RequiresCompatibilities:
-        - "FARGATE"
-      TaskRoleArn: "ecsTaskExecutionRole"
-      ContainerDefinitions:
-        -
-          Name: !Join ['', [ !Ref ApplicationName, '-stage']]
-          Image: !Ref RepoURI
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: "tcp"
-          Essential: "true"
-          
-  STAGETargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-stage']]
-      Protocol: "HTTP"
-      Port: 80
-      VpcId: !Ref VPC
-      HealthCheckProtocol: "HTTP"
-      HealthCheckPort: "80"
-      HealthCheckPath: "/health"
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetType: "ip"
-      Matcher:
-        HttpCode: "200"
-        
-  STAGEALBListeners:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: "forward"
-          TargetGroupArn: !Ref STAGETargetGroup
-      LoadBalancerArn: !Ref STAGEECSApplicationLoadBalancer
-      Port: 80
-      Protocol: "HTTP"
-      
-  STAGEECSService:
-    Type: AWS::ECS::Service
-    DependsOn: STAGEALBListeners
-    Properties: 
-      Cluster: !Ref TechnicalTeam
-      ServiceName: !Join ['', [ !Ref ApplicationName, '-stage']]
-      TaskDefinition: !Ref STAGETaskDefinition
-      DesiredCount: "1"
-      LoadBalancers:
-        - ContainerName: !Join ['', [ !Ref ApplicationName, '-stage']]
-          ContainerPort: 80
-          TargetGroupArn: !Ref STAGETargetGroup
-      LaunchType: "FARGATE"
-      SchedulingStrategy: "REPLICA"
-      DeploymentConfiguration: 
-        MaximumPercent: 100
-        MinimumHealthyPercent: 50
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
-          SecurityGroups:
-            - !Ref SG1
-          Subnets:
-            - !Ref SUBNET1
-            - !Ref SUBNET2      
-            
-
-  PRODBlueTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Condition: CreateProd
-    Properties: 
-      Cpu: "256"
-      ExecutionRoleArn: "ecsTaskExecutionRole"
-      Family: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
-      Memory: "512"
-      NetworkMode: "awsvpc"
-      RequiresCompatibilities:
-        - "FARGATE"
-      TaskRoleArn: "ecsTaskExecutionRole"
-      ContainerDefinitions:
-        -
-          Name: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
-          Image: !Ref RepoURI
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: "tcp"
-          Essential: "true"
-          
-  PRODBlueTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
-      Protocol: "HTTP"
-      Port: 80
-      VpcId: !Ref VPC
-      HealthCheckProtocol: "HTTP"
-      HealthCheckPort: "80"
-      HealthCheckPath: "/health"
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetType: "ip"
-      Matcher:
-        HttpCode: "200"
-        
-  PRODBlueALBListeners:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: "forward"
-          TargetGroupArn: !Ref PRODBlueTargetGroup
-      LoadBalancerArn: !Ref PRODECSApplicationLoadBalancer
-      Port: 8080
-      Protocol: "HTTP"
-      
-  PRODBlueECSService:
-    Type: AWS::ECS::Service
-    DependsOn: PRODBlueALBListeners
-    Properties: 
-      Cluster: !Ref TechnicalTeam
-      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
-      TaskDefinition: !Ref PRODBlueTaskDefinition
-      DesiredCount: "1"
-      LoadBalancers:
-        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
-          ContainerPort: 80
-          TargetGroupArn: !Ref PRODBlueTargetGroup
-      LaunchType: "FARGATE"
-      SchedulingStrategy: "REPLICA"
-      DeploymentConfiguration: 
-        MaximumPercent: 100
-        MinimumHealthyPercent: 50
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
-          SecurityGroups:
-            - !Ref SG1
-          Subnets:
-            - !Ref SUBNET1
-            - !Ref SUBNET2            
-            
-            
-  PRODGreenTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Condition: CreateProd
-    Properties: 
-      Cpu: "256"
-      ExecutionRoleArn: "ecsTaskExecutionRole"
-      Family: !Join ['', [ !Ref ApplicationName, '-prod-green']]
-      Memory: "512"
-      NetworkMode: "awsvpc"
-      RequiresCompatibilities:
-        - "FARGATE"
-      TaskRoleArn: "ecsTaskExecutionRole"
-      ContainerDefinitions:
-        -
-          Name: !Join ['', [ !Ref ApplicationName, '-prod-green']]
-          Image: !Ref RepoURI
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: "tcp"
-          Essential: "true"
-          
-  PRODGreenTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ['', [ !Ref ApplicationName, '-prod-green']]
-      Protocol: "HTTP"
-      Port: 80
-      VpcId: !Ref VPC
-      HealthCheckProtocol: "HTTP"
-      HealthCheckPort: "80"
-      HealthCheckPath: "/health"
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetType: "ip"
-      Matcher:
-        HttpCode: "200"
-        
-  PRODGreenALBListeners:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: "forward"
-          TargetGroupArn: !Ref PRODGreenTargetGroup
-      LoadBalancerArn: !Ref PRODECSApplicationLoadBalancer
-      Port: 80
-      Protocol: "HTTP"
-      
-  PRODGreenECSService:
-    Type: AWS::ECS::Service
-    DependsOn: PRODGreenALBListeners
-    Properties: 
-      Cluster: !Ref TechnicalTeam
-      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod-green']]
-      TaskDefinition: !Ref PRODGreenTaskDefinition
-      DesiredCount: "1"
-      LoadBalancers:
-        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod-green']]
-          ContainerPort: 80
-          TargetGroupArn: !Ref PRODGreenTargetGroup
-      LaunchType: "FARGATE"
-      SchedulingStrategy: "REPLICA"
-      DeploymentConfiguration: 
-        MaximumPercent: 100
-        MinimumHealthyPercent: 50
-      NetworkConfiguration: 
-        AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
-          SecurityGroups:
-            - !Ref SG1
-          Subnets:
-            - !Ref SUBNET1
-            - !Ref SUBNET2                        
-    
-  #DeployAPI:
-  #  Type: 'Custom::DeployAPI'
-  #  Properties:
-  #    ServiceToken: !Join
-  #      - ''
-  #      - 'arn:aws:lambda:'
-  #      - !Ref 'AWS::Region'
-  #      - ':'
-  #      - !Ref 'AWS::AccountId'
-  #      - ':deployapi'
-  #    Relaunch: 'False'
+      ServiceToken: !Join
+        - ''
+        - 'arn:aws:lambda:'
+        - !Ref 'AWS::Region'
+        - ':'
+        - !Ref 'AWS::AccountId'
+        - ':deployapi'
+      Relaunch: 'False'
    

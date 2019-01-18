@@ -1,4 +1,5 @@
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 import json
 import datetime
 import os
@@ -252,6 +253,7 @@ def lambda_handler(event, context):
         env = i.upper()
         try:
             resp = table.query(KeyConditionExpression=Key('ApplicationName').eq(appname) & Key('Environment').eq(env))
+            print resp
             if resp['Count'] == 0:
                 status_code = 409
                 message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
@@ -264,7 +266,17 @@ def lambda_handler(event, context):
                             }
                         }        
         except Exception as e: 
-            message = e
+            print e
+            status_code = 409
+            message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
+            return {
+                    'statusCode': str(status_code),
+                    'body': json.dumps(message),
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                        }
+                    }
         
         dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': env}}, AttributesToGet=['TechnicalTeam'])
         techteam = dynamo_response['Item']['TechnicalTeam']['S']           

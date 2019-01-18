@@ -102,21 +102,27 @@ Body:
     "message": "Stack Creation Started for MyDevOpsAPI",
     "environmentType": [
         {
+			"Endpoint": "MydevOpsAPI.dkr.dev.hostedzonename.",
             "DEV": "YES"
         },
         {
+			"Endpoint": "MydevOpsAPI.dkr.qa.hostedzonename.",
             "QA": "YES"
         },
         {
+			"Endpoint": "MydevOpsAPI.dkr.stage.hostedzonename.",
             "STAGE": "YES"
         },
         {
+			"Endpoint": "MydevOpsAPI.dkr.prod.hostedzonename.",
             "PROD": "YES"
         },
         {
+			"Endpoint": "MydevOpsAPI.dkr.training.hostedzonename.",
             "TRAINING": "NO"
         },
         {
+			"Endpoint": "MydevOpsAPI.dkr.da.hostedzonename.",
             "DA": "NO"
         }
     ],

@@ -12,3 +12,4 @@ elbsg: <alb-sg-id>
 region: <aws-region>
 repouri: <default-image-uri>
 cftemplate: <s3-url-for-cloudformation-template>
+hostedzonename: <hostedzonename>

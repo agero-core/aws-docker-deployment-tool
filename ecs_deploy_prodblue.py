@@ -110,10 +110,23 @@ def lambda_handler(event, context):
                 'Access-Control-Allow-Origin': '*'
                 }
             }
+    try:
+        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': 'STAGE'}}, AttributesToGet=['TechnicalTeam', 'Version'])
+        techteam = dynamo_response['Item']['TechnicalTeam']['S']
+        version = dynamo_response['Item']['Version']['S']
+    except Exception as e:
+        print e
+        status_code = 409
+        message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
+        return {
+                'statusCode': str(status_code),
+                'body': json.dumps(message),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                    }
+                }
 
-    dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': 'STAGE'}}, AttributesToGet=['TechnicalTeam', 'Version'])
-    techteam = dynamo_response['Item']['TechnicalTeam']['S']
-    version = dynamo_response['Item']['Version']['S']
 
     vpc = os.environ['VPC']
     subnet1 = os.environ['SUBNET1']
