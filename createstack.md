@@ -83,7 +83,6 @@ Body:
       "da":false
    },
    "tags":{  
-      "name":"MyDevOpsAPI",
       "ageroService": "OneRoad",
       "tier": "Tier1",
       "complianceType": "Type1",

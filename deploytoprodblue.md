@@ -1,5 +1,5 @@
 # **Deploy to NonProd Environments**
-    POST /dev/stacks/deploytoprodBlue
+    POST /dev/stacks/deploytoProdBlue
 
 ## **Description**
 - This API call deploys image to production blue environment

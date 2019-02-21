@@ -1,5 +1,5 @@
 # **Deploy to NonProd Environments**
-    POST /dev/stacks/deploy
+    POST /dev/stacks/deploytoNonProd
 
 ## **Description**
 - This API call deploys image to application stack that was been created
@@ -13,10 +13,10 @@
    - This will be the application name to which the image needs to be deployed
 - **environment** _(required)_
    - This will be the list of environments to which the image needs to be deployed
-- **repouri** _(required)_
-   - This will be the image uri from ECR that needs to be deployed
+- **imageTag** _(required)_
+   - This will be the image tag from ECR of the given application that needs to be deployed
 - **version** _(required)_
-   - This will be the version number for the associated image
+   - This will be the version number for the associated image (It should be same as the imageTag)
 ***
 ## **Response**
 ### Success
@@ -40,7 +40,7 @@ Body:
 {
 	"applicationName": "MyDevOpsAPI",
 	"environment": ["dev", "qa", "stage"],
-	"repouri": <image-uri>,
+	"imageTag": "1.0.0.0",
 	"version": "1.0.0.0"
 }
 ```

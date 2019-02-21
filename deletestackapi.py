@@ -1,267 +1,142 @@
 import boto3
 import json
 import datetime
+import os
 
 cf = boto3.client('cloudformation')
 dynamo_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
 ecs = boto3.client('ecs')
 ecr = boto3.client('ecr')
+sts = boto3.client('sts')
 
-def stackexists(stackname):
-    try:
-        response = cf.describe_stacks(StackName=stackname)
-    except Exception as e:
-            status_code = 400
-            message = {'errorMessage': "Stack does not exist"}
-            return {
-                'statusCode': str(status_code),
-                'body': json.dumps(message),
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                    }
-                }
+### CROSSACCOUNT DYNAMO ACCESS TO SHARED ACCOUNT ###
+stsrolearn = os.environ['STSROLEARN']
+response = sts.assume_role(RoleArn=stsrolearn, RoleSessionName='CrossAccountECSDynamoTableAccess')
 
+aws_access_key_id=response['Credentials']['AccessKeyId']
+aws_secret_access_key=response['Credentials']['SecretAccessKey']
+aws_session_token=response['Credentials']['SessionToken']
+
+dynamo_client = boto3.client('dynamodb', aws_access_key_id=aws_access_key_id,aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
+resource = boto3.resource('dynamodb', aws_access_key_id=aws_access_key_id,aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
+nonprod_table = resource.Table('ECS_Inventory_NonProduction')
+prod_table = resource.Table('ECS_Inventory_Production')
+trainda_table = resource.Table('ECS_Inventory_Training_DA')
+#### ###
+
+
+###     RETURN BODY FOR API     ###
+def return_body(status_code, message):
+    body = {
+        'statusCode': str(status_code),
+        'body': json.dumps(message),
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+            }
+        }
+    return body
+####     ####
+
+###     DELETE ECR      ###
+def delete_ecr(stackname):
+    ecr_name = stackname.lower()
+    resp = ecr.delete_repository(repositoryName=ecr_name, force=True)
+####     ####
+
+
+###     Main Handler    ###
 def lambda_handler(event, context):
 
     print event
     body = json.loads(event['body'])
+
+    nonprod_acc = os.environ['NONPROD_ACC']
+    prod_acc = os.environ['PROD_ACC']
+    region = os.environ['REGION']
 
     try:
         stackname = body['stack']
         if stackname == "":
             status_code = 400
             message = {"errorMessage": "Parameter Validation Error: stackname cannot be empty"}
-            return {
-                'statusCode': str(status_code),
-                'body': json.dumps(message),
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                    }
-                }
+            return_message = return_body(status_code, message)
+            return return_message
     except KeyError:
         status_code = 400
         message = {"errorMessage": "Parameter Validation Error: stackname needs to be mentioned"}
-        return {
-            'statusCode': str(status_code),
-            'body': json.dumps(message),
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-                }
-            }
-
-    message = "Deleting " + stackname
-    time = datetime.datetime.now()
-    resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
-    print resp
+        return_message = return_body(status_code, message)
+        return return_message
 
 
-    message = "All Environments Deleted"
-    nonprod_table = dynamodb.Table("ECS_Inventory_NonProduction")
     try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'DEV'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'dev'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'DEV'})
-        print response
+        delete_ecr(stackname)
+    except Exception as e:
+        status_code = 400
+        message = {"errorMessage": "Error Deleting the ECR Repository"}
+        return_message = return_body(status_code, message)
+        return return_message
         
-    except Exception as e:
-        message = str(e)
-        pass 
 
     try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'QA'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'qa'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'QA'})
+        response = cf.delete_stack_instances(StackSetName=stackname, Accounts = [nonprod_acc, prod_acc], Regions=[region], RetainStacks=False)
         print response
+        try:
+            resp = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'DEV'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'QA'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'STAGE'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = prod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'PROD-BLUE'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = prod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'PROD-GREEN'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = trainda_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'TRAINING'})
+        except Exception as e:
+            print e
+            pass
+        try:
+            resp = trainda_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'DA'})
+        except Exception as e:
+            print e
+            pass
 
-    except Exception as e:
-        message = str(e)
-        pass
-
-    try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'STAGE'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'stage'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = nonprod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'STAGE'})
-        print response
-
-    except Exception as e:
-        message = str(e)
-        pass
-        
-    
-    prod_table = dynamodb.Table("ECS_Inventory_Production")
-    try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_Production", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'PROD-BLUE'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'prod-blue'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = prod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'PROD-BLUE'})
-        print response
-
-    except Exception as e:
-        message = str(e)
-        pass
-
-
-    try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_Production", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'PROD-GREEN'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'prod-green'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = prod_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'PROD-GREEN'})
-        print response
-
-
-    except Exception as e:
-        message = str(e)
-        pass
-
-
-    trainda_table = dynamodb.Table("ECS_Inventory_Training_DA")
-    try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_Production", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'TRAINING'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam        
-
-        name = stackname+'-'+'training'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = trainda_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'TRAINING'})
-        print response
-
-    except Exception as e:
-        message = str(e)
-        pass
-
-
-    try:
-        dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_Training_DA", Key={'ApplicationName': {'S': stackname}, 'Environment': {'S': 'DA'}}, AttributesToGet=['TechnicalTeam'])
-        techteam = dynamo_response['Item']['TechnicalTeam']['S']
-        print techteam
-
-        name = stackname+'-'+'da'
-        ecs_resp = ecs.delete_service(cluster=techteam, service=name, force=True)
-        resp = ecs.list_task_definitions(familyPrefix=name,status='ACTIVE')
-        taskdef_arn = resp['taskDefinitionArns']
-        print taskdef_arn
-        for each_taskdef_arn in taskdef_arn:
-            print each_taskdef_arn
-            task_resp = ecs.deregister_task_definition(taskDefinition=each_taskdef_arn)
-
-        response = trainda_table.delete_item(Key={'ApplicationName': stackname, 'Environment': 'DA'})
-        print response
-
-    except Exception as e:
-        message = str(e)
-        pass
-
-    try:
-        repo_name = stackname.lower()
-        resp = ecr.delete_repository(repositoryName=repo_name, force=True)
+        status_code = 200
+        message = {'message': 'StackInstances Deletion Initiated', 'Warning': 'Please be aware to Remove StackSet been created in CloudFormation'}
+        return_message = return_body(status_code, message)
+        return return_message
     except Exception as e:
         print e
-        status_code = 403
-        message = {'message': "Error while deleting the Repository"}
-        return {
-            'statusCode': str(status_code),
-            'body': json.dumps(message),
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-                }
-            }
+        status_code = 409
+        message = {'message': 'Stack does not Exists'}
+        return_message = return_body(status_code, message)
+        return return_message
 
+    """
     try:
-        response = cf.delete_stack(StackName=stackname)
+        response = cf.delete_stack_set(StackSetName=stackname)
         print response
     except Exception as e:
         print e
         status_code = 409
         message = {'message': 'Stack does not Exists'}
-        return {
-            'statusCode': str(status_code),
-            'body': json.dumps(message),
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-                }
-            }        
-
-    message = "Deleted Stack " + stackname
-    time = datetime.datetime.now()
-    resp = dynamo_client.put_item(TableName="DevOpsLogsTable", Item={'ResourceName': {'S': 'ecs_deployapi'}, 'Time': {'S': str(time)}, 'Message': {'S': message}})
-    print resp
-
-    status_code = 200
-    message = {"message": "Stack " + stackname + " has been deleted"}
-    
-    return {
-        'statusCode': str(status_code),
-        'body': json.dumps(message),
-        'headers': {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-            }
-        }
-
-
+        return_message = return_body(status_code, message)
+        return return_message
+    """
