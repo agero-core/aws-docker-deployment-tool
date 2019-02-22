@@ -1,0 +1,573 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: Configure and launch the AWS Elastic Container Service in NonProduction
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health
+  DevEnvironment:
+    Type: String
+    Description: Do you want to create an DEV Environment?
+    AllowedValues:
+      - DEV
+      - None
+    Default: DEV
+  QAEnvironment:
+    Type: String
+    Description: Do you want to create an QA Environment?
+    AllowedValues:
+      - QA
+      - None
+    Default: None
+  StageEnvironment:
+    Type: String
+    Description: Do you want to create an STAGE Environment?
+    AllowedValues:
+      - STAGE
+      - None
+    Default: None    
+  TrainEnvironment:
+    Type: String
+    Description: Do you want to create an TRAINING Environment?
+    AllowedValues:
+      - TRAINING
+      - None
+    Default: None
+  DAEnvironment:
+    Type: String
+    Description: Do you want to create an DA Environment?
+    AllowedValues:
+      - DA
+      - None
+    Default: None
+    
+  TechnicalTeam:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - CoreEngineeingTeam
+      - CoreApiServices
+      - CorePlatformTeam
+      - Architecture
+      - CoreAutomationTeam
+  Tier:
+    Type: String
+    Description: Which Tier Application belongs to? 
+  ClassificationLabel:
+    Type: String
+    Description: ClassificationLabel for this Application?    
+  AgeroService:
+    Type: String
+    Description: Which AgeroService this Application belongs to?
+  BusinessTeam:
+    Type: String
+    Description: Which BusinessTeam will Own this Application?
+  ComplianceType:
+    Type: String
+    Description: Which ComplianceType will this Application belongs to?
+    
+  DEVQAVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  STAGEVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  TRAININGVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  DAVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  RepoURI:
+    Type: String
+    Description: RepoURI where the image is stored
+    
+  ECRName:
+    Type: String
+    Description: Elastic Container Repository Name
+    
+  DEVQASUBNET:
+    Type: CommaDelimitedList
+    Description: First Subnet for Container Service
+    
+  STAGESUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service
+
+  TRAININGSUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service    
+    
+  DASUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service
+      
+  DEVQAALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  STAGEALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  TRAININGALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer    
+    
+  DAALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+        
+  DEVQASG:
+    Type: String
+    Description: SecurityGroup
+    
+  STAGESG:
+    Type: String
+    Description: SecurityGroup    
+    
+  TRAININGSG:
+    Type: String
+    Description: SecurityGroup
+    
+  DASG:
+    Type: String
+    Description: SecurityGroup
+    
+  DEVQAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  STAGEALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  TRAININGALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  DAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  DomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record
+    
+  ProdAccountId:
+    Type: String    
+    
+
+Conditions:
+  CreateDev: !Equals
+    - !Ref DevEnvironment
+    - DEV
+  CreateQA: !Equals
+    - !Ref QAEnvironment
+    - QA
+  CreateStage: !Equals
+    - !Ref StageEnvironment
+    -  STAGE
+  CreateTrain: !Equals
+    - !Ref TrainEnvironment
+    - TRAINING
+  CreateDA: !Equals
+    - !Ref DAEnvironment
+    - DA
+
+    
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Ref ECRName
+      RepositoryPolicyText:
+        Version: "2008-10-17"
+        Statement:
+          -
+            Sid: CrossAccountPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Join [ "", ["arn:aws:iam::", !Ref ProdAccountId, ":root"]]
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ApplicationName
+      
+  DEVECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateDev
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-dev']]
+      Scheme: internal
+      Subnets: !Ref DEVQAALBSUBNET
+      SecurityGroups:
+        - Ref: DEVQAALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-dev']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: DEV
+      
+  QAECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateQA
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-qa']]
+      Scheme: internal
+      Subnets: !Ref DEVQAALBSUBNET
+      SecurityGroups:
+        - Ref: DEVQAALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-qa']]     
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: QA
+
+  STAGEECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateStage
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-stage']]
+      Scheme: internal
+      Subnets: !Ref STAGEALBSUBNET
+      SecurityGroups:
+        - Ref: STAGEALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-stage']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: STAGE
+
+  TRAININGECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateTrain
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-training']]
+      Scheme: internal
+      Subnets: !Ref TRAININGALBSUBNET
+      SecurityGroups:
+        - Ref: TRAININGALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-training']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: TRAINING          
+
+  DAECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: CreateDA
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-da']]
+      Scheme: internal
+      Subnets: !Ref DAALBSUBNET
+      SecurityGroups:
+        - Ref: DAALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-da']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: DA
+          
+  DEVTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateDev
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-dev']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-dev']]
+          Image: !Ref RepoURI
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  DEVTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateDev
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-dev']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  DEVALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: CreateDev
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref DEVTargetGroup
+      LoadBalancerArn: !Ref DEVECSApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+      
+  DEVECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateDev
+    DependsOn: DEVALBListeners
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-dev']]
+      TaskDefinition: !Ref DEVTaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-dev']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref DEVTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+            
+  DEVRoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateDev
+    DependsOn: DEVECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt DEVECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt DEVECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Ref DomainName
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.dev.', !Ref DomainName]]
+      Type: "A"          
+      
+
+  QATaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateQA
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-qa']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-qa']]
+          Image: !Ref RepoURI
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  QATargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateQA
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-qa']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  QAALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: CreateQA
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref QATargetGroup
+      LoadBalancerArn: !Ref QAECSApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+      
+  QAECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateQA
+    DependsOn: QAALBListeners
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-qa']]
+      TaskDefinition: !Ref QATaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-qa']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref QATargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+
+  QARoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateQA
+    DependsOn: QAECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt QAECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt QAECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Ref DomainName
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.qa.', !Ref DomainName]]
+      Type: "A"
+
+  STAGETaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateStage
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-stage']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-stage']]
+          Image: !Ref RepoURI
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  STAGETargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateStage
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-stage']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref STAGEVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  STAGEALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: CreateStage
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref STAGETargetGroup
+      LoadBalancerArn: !Ref STAGEECSApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+      
+  STAGEECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateStage
+    DependsOn: STAGEALBListeners
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-stage']]
+      TaskDefinition: !Ref STAGETaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-stage']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref STAGETargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref STAGESG
+          Subnets: !Ref STAGESUBNET
+
+  STAGERoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateStage
+    DependsOn: STAGEECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt STAGEECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt STAGEECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Ref DomainName
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.stage.', !Ref DomainName]]
+      Type: "A"
+
+      

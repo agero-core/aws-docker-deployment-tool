@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: Configure and launch the AWS Elastic Container Service in Production
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health    
+  ProdEnvironment:
+    Type: String
+
+  TechnicalTeam:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - CoreEngineeingTeam
+      - CoreApiServices
+      - CorePlatformTeam
+      - Architecture
+      - CoreAutomationTeam
+  Tier:
+    Type: String
+    Description: Which Tier Application belongs to? 
+  ClassificationLabel:
+    Type: String
+    Description: ClassificationLabel for this Application?    
+  AgeroService:
+    Type: String
+    Description: Which AgeroService this Application belongs to?
+  BusinessTeam:
+    Type: String
+    Description: Which BusinessTeam will Own this Application?
+  ComplianceType:
+    Type: String
+    Description: Which ComplianceType will this Application belongs to?
+    
+  PRODVPC:
+    Type: String
+    Description: VPC to launch Services    
+
+  RepoURI:
+    Type: String
+    Description: RepoURI where the image is stored
+    
+  ECRName:
+    Type: String
+    Description: Elastic Container Repository Name
+    
+  PRODSUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service    
+          
+  PRODALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  PRODSG:
+    Type: String
+    Description: SecurityGroup
+        
+  PRODALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  DomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record
+    
+    
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ApplicationName
+      
+  PRODECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod']]
+      Scheme: internal
+      Subnets: !Ref PRODALBSUBNET
+      SecurityGroups:
+        - Ref: PRODALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-prod']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: PROD           
+          
+  PRODBlueTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "crossAccountEcsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "crossAccountEcsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
+          Image: !Ref RepoURI
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  PRODBlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref PRODVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  PRODBlueALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref PRODBlueTargetGroup
+      LoadBalancerArn: !Ref PRODECSApplicationLoadBalancer
+      Port: 8080
+      Protocol: "HTTP"
+      
+  PRODBlueECSService:
+    Type: AWS::ECS::Service
+    DependsOn: PRODBlueALBListeners
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
+      TaskDefinition: !Ref PRODBlueTaskDefinition
+      DesiredCount: "2"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod-blue']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref PRODBlueTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref PRODSG
+          Subnets: !Ref PRODSUBNET        
+            
+            
+  PRODGreenTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "crossAccountEcsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-prod-green']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "crossAccountEcsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-prod-green']]
+          Image: !Ref RepoURI
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  PRODGreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod-green']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref PRODVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  PRODGreenALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref PRODGreenTargetGroup
+      LoadBalancerArn: !Ref PRODECSApplicationLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+      
+  PRODGreenECSService:
+    Type: AWS::ECS::Service
+    DependsOn: PRODGreenALBListeners
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod-green']]
+      TaskDefinition: !Ref PRODGreenTaskDefinition
+      DesiredCount: "2"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod-green']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref PRODGreenTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 50
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref PRODSG
+          Subnets: !Ref PRODSUBNET
+    
+  PRODRoute53Record:
+    Type: AWS::Route53::RecordSet
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt PRODECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt PRODECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Ref DomainName
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.prod.', !Ref DomainName ]]
+      Type: "A"

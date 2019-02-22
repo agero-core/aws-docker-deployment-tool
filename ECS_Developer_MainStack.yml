@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: MainStack
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  Application:
+    Type: String
+    AllowedValues:
+      - New Application
+      - Existing Application
+    Description: Application New/Existing
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health
+  DevEnvironment:
+    Type: String
+    Description: Do you want to create an DEV Environment?
+    AllowedValues:
+      - DEV
+      - None
+    Default: DEV
+  QAEnvironment:
+    Type: String
+    Description: Do you want to create an QA Environment?
+    AllowedValues:
+      - QA
+      - None
+    Default: None
+  StageEnvironment:
+    Type: String
+    Description: Do you want to create an STAGE Environment?
+    AllowedValues:
+      - STAGE
+      - None
+    Default: None    
+  ProdEnvironment:
+    Type: String
+    Description: Do you want to create an PROD Environment?
+    AllowedValues:
+      - PROD
+      - None
+    Default: None
+  TrainEnvironment:
+    Type: String
+    Description: Do you want to create an TRAINING Environment?
+    AllowedValues:
+      - TRAINING
+      - None
+    Default: None
+  DAEnvironment:
+    Type: String
+    Description: Do you want to create an DA Environment?
+    AllowedValues:
+      - DA
+      - None
+    Default: None
+    
+  TechnicalTeam:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - CoreEngineeingTeam
+      - CoreApiServices
+      - CorePlatformTeam
+      - Architecture
+      - CoreAutomationTeam
+  Tier:
+    Type: String
+    Description: Which Tier Application belongs to? 
+  ClassificationLabel:
+    Type: String
+    Description: ClassificationLabel for this Application?    
+  AgeroService:
+    Type: String
+    Description: Which AgeroService this Application belongs to?
+  BusinessTeam:
+    Type: String
+    Description: Which BusinessTeam will Own this Application?
+  ComplianceType:
+    Type: String
+    Description: Which ComplianceType will this Application belongs to?
+    
+  DEVQAVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  STAGEVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  TRAININGVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  DAVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  PRODVPC:
+    Type: String
+    Description: VPC to launch Services    
+
+  RepoURI:
+    Type: String
+    Description: RepoURI where the image is stored
+    
+  ECRName:
+    Type: String
+    Description: Elastic Container Repository Name
+    
+  DEVQASUBNET:
+    Type: String
+    Description: First Subnet for Container Service
+    
+  STAGESUBNET:
+    Type: String
+    Description: Second Subnet for Container Service
+
+  TRAININGSUBNET:
+    Type: String
+    Description: Second Subnet for Container Service    
+    
+  DASUBNET:
+    Type: String
+    Description: Second Subnet for Container Service
+    
+  PRODSUBNET:
+    Type: String
+    Description: Second Subnet for Container Service    
+      
+  DEVQAALBSUBNET:
+    Type: String
+    Description: First Subnet for Application LoadBalancer
+    
+  STAGEALBSUBNET:
+    Type: String
+    Description: First Subnet for Application LoadBalancer
+    
+  TRAININGALBSUBNET:
+    Type: String
+    Description: First Subnet for Application LoadBalancer    
+    
+  DAALBSUBNET:
+    Type: String
+    Description: First Subnet for Application LoadBalancer
+    
+  PRODALBSUBNET:
+    Type: String
+    Description: First Subnet for Application LoadBalancer
+    
+  DEVQASG:
+    Type: String
+    Description: SecurityGroup
+    
+  STAGESG:
+    Type: String
+    Description: SecurityGroup    
+    
+  TRAININGSG:
+    Type: String
+    Description: SecurityGroup
+    
+  DASG:
+    Type: String
+    Description: SecurityGroup
+    
+  PRODSG:
+    Type: String
+    Description: SecurityGroup
+    
+  DEVQAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  STAGEALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  TRAININGALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  DAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  PRODALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  DomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record
+  
+  ProdDomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record    
+    
+  NonProdAccountId:
+    Type: String
+  
+  ProdAccountId:
+    Type: String
+  
+Conditions:
+  NonProdStack: !Equals
+    - !Ref "AWS::AccountId"
+    - !Ref NonProdAccountId
+    
+  ProdStack: !Equals
+    - !Ref "AWS::AccountId"
+    - !Ref ProdAccountId
+    
+    
+Resources:
+  NonProdStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Condition: NonProdStack
+    Properties: 
+      TemplateURL: https://s3.amazonaws.com/agero-devops-ecs-cf-template/ECS_Developer_NonProdStack.yml
+      Parameters:
+        ApplicationName: !Ref ApplicationName
+        AppDescription: !Ref AppDescription
+        EmailAddress: !Ref EmailAddress
+        HealthURL: !Ref HealthURL
+        DevEnvironment: !Ref DevEnvironment
+        QAEnvironment: !Ref QAEnvironment
+        StageEnvironment: !Ref StageEnvironment
+        TrainEnvironment: !Ref TrainEnvironment
+        DAEnvironment: !Ref DAEnvironment
+        DEVQAVPC: !Ref DEVQAVPC
+        STAGEVPC: !Ref STAGEVPC
+        TRAININGVPC: !Ref TRAININGVPC
+        DAVPC: !Ref DAVPC
+        DEVQAALBSUBNET: !Ref DEVQAALBSUBNET
+        STAGEALBSUBNET: !Ref STAGEALBSUBNET
+        TRAININGALBSUBNET: !Ref TRAININGALBSUBNET
+        DAALBSUBNET: !Ref DAALBSUBNET
+        DEVQAALBSG: !Ref DEVQAALBSG
+        STAGEALBSG: !Ref STAGEALBSG
+        TRAININGALBSG: !Ref TRAININGALBSG
+        DAALBSG: !Ref DAALBSG
+        DEVQASUBNET: !Ref DEVQASUBNET
+        STAGESUBNET: !Ref STAGESUBNET
+        TRAININGSUBNET: !Ref TRAININGSUBNET
+        DASUBNET: !Ref DASUBNET
+        DEVQASG: !Ref DEVQASG
+        STAGESG: !Ref STAGESG
+        TRAININGSG: !Ref TRAININGSG
+        DASG: !Ref DASG
+        ECRName: !Ref ECRName
+        RepoURI: !Ref RepoURI
+        DomainName: !Ref DomainName
+        TechnicalTeam: !Ref TechnicalTeam
+        Tier: !Ref Tier
+        ClassificationLabel: !Ref ClassificationLabel
+        AgeroService: !Ref AgeroService
+        BusinessTeam: !Ref BusinessTeam
+        ComplianceType: !Ref ComplianceType
+        ProdAccountId: !Ref ProdAccountId
+
+  ProdStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Condition: ProdStack
+    Properties: 
+      TemplateURL: https://s3.amazonaws.com/agero-devops-ecs-cf-template/ECS_Developer_ProdStack.yml
+      Parameters:
+        ApplicationName: !Ref ApplicationName
+        AppDescription: !Ref AppDescription
+        EmailAddress: !Ref EmailAddress
+        HealthURL: !Ref HealthURL
+        ProdEnvironment: !Ref ProdEnvironment
+        PRODVPC: !Ref PRODVPC
+        PRODALBSUBNET: !Ref PRODALBSUBNET
+        PRODALBSG: !Ref PRODALBSG
+        PRODSUBNET: !Ref PRODSUBNET
+        PRODSG: !Ref PRODSG
+        ECRName: !Ref ECRName
+        RepoURI: !Ref RepoURI
+        DomainName: !Ref ProdDomainName
+        TechnicalTeam: !Ref TechnicalTeam
+        Tier: !Ref Tier
+        ClassificationLabel: !Ref ClassificationLabel
+        AgeroService: !Ref AgeroService
+        BusinessTeam: !Ref BusinessTeam
+        ComplianceType: !Ref ComplianceType
+        
