@@ -119,15 +119,15 @@ functions:
 
 ## **Endpoints & Back-End Lambda Functions**
 ### **Developer Endpoints**
- * [POST /dev/stacks](createstack.md)
- * [POST /dev/stacks/deploytoNonProd](deploytononprod.md)
- * [POST /dev/stacks/deploytoProdBlue](deploytoprodblue.md)
- * [POST /dev/stacks/swapProdBlueAndGreen](swapbluegreen.md)
- * [POST /dev/stacks/deploytoTrainDA](deploytotrainda.md)
- * [POST /dev/stacks/addSubscription](addsubscription.md)
- * [POST /dev/stacks/nonprodStatus](nonprodstatus.md)
- * [POST /dev/stacks/prodblueStatus](prodbluestatus.md) 
- * [DELETE /dev/stacks](deletestack.md)
+ * [POST /stacks](createstack.md)
+ * [POST /stacks/deploytoNonProd](deploytononprod.md)
+ * [POST /stacks/deploytoProdBlue](deploytoprodblue.md)
+ * [POST /stacks/swapProdBlueAndGreen](swapbluegreen.md)
+ * [POST /stacks/deploytoTrainDA](deploytotrainda.md)
+ * [POST /stacks/addSubscription](addsubscription.md)
+ * [POST /stacks/nonprodStatus](nonprodstatus.md)
+ * [POST /stacks/prodblueStatus](prodbluestatus.md) 
+ * [DELETE /stacks](deletestack.md)
 
 ***
 
