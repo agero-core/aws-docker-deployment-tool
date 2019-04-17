@@ -1,5 +1,5 @@
 # **Delete Stack**
-    DELETE /dev/stacks
+    DELETE /stacks
 
 ## **Description**
 - This API call deletes application stack that was been deployed
@@ -28,7 +28,7 @@
 ***
 ## **Example**
 ### Request
-DELETE https://<api-generated>.execute-api.us-east-1.amazonaws.com/dev/stacks
+DELETE https://yourcustomdevopsdomain.com/stacks
 Body:
 ``` json
 {
@@ -38,6 +38,7 @@ Body:
 ### Response
 ``` json
 {
-    "message": "Stack MyDevOpsAPI has been deleted"
+    'message': 'StackInstances Deletion Initiated', 
+	'Warning': 'Please be aware to Remove StackSet been created in CloudFormation'
 }
 ```

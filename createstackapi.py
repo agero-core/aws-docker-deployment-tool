@@ -82,7 +82,13 @@ def lambda_handler(event,context):
             return_message = return_body(status_code, message)
             return return_message
 
-        if "OneRoad" not in ageroservice or "VIMS" not in ageroservice or "Blink Roadside" not in ageroservice or "D360" not in ageroservice or "MileUp" not in ageroservice or "NCC" not in ageroservice or "IT Internal" not in ageroservice or "Security" not in ageroservice or "Reporting" not in ageroservice or "Finance" not in ageroservice or "Business Application" not in ageroservice:            
+        flag = 0
+        ageroservice_list = ["OneRoad", "VIMS", "Blink Roadside", "D360", "MileUp", "NCC", "IT Internal", "Security", "Reporting", "Finance", "Business Application"]
+        for each_value in ageroservice_list:
+            if ageroservice == each_value:
+                flag = 1
+               
+        if flag == 0:
             status_code = 400
             message = {"errorMessage": "Check the list of accepted values for ageroService"}
             return_message = return_body(status_code, message)
@@ -102,7 +108,13 @@ def lambda_handler(event,context):
             return_message = return_body(status_code, message)
             return return_message
 
-        if "WEB" not in tier or "API" not in tier or "DATA" not in tier:
+        flag = 0
+        tier_list = ["WEB", "API", "DATA"]
+        for each_value in tier_list:
+            if tier == each_value:
+                flag = 1
+
+        if flag == 0:
             status_code = 400
             message = {"errorMessage": "Check the list of accepted values for tier"}
             return_message = return_body(status_code, message)
@@ -122,8 +134,14 @@ def lambda_handler(event,context):
             return_message = return_body(status_code, message)
             return return_message
 
-        if "NA" not in compliancetype or "PII" not in compliancetype or "PCI" not in compliancetype:
-            status_code =400
+        flag = 0
+        compliancetype_list = ["NA", "PII", "PCI"]
+        for each_value in compliancetype_list:
+            if compliancetype == each_value:
+                flag = 1
+
+        if flag == 0:    
+            status_code = 400
             message = {"errorMessage": "Check the list of accepted values for complianceType"}
             return_message = return_body(status_code, message)
             return return_message
@@ -141,6 +159,19 @@ def lambda_handler(event,context):
             message = {"errorMEssage": "businessTeam cannot be empty"}
             return_message = return_body(status_code, message)
             return return_message
+
+        flag = 0
+        businessteam_list = ["Accounting", "Agero Analytics", "AM Network", "Architecture", "Business Analyst", "Call Center Operations", "Client Service Analysts", "Data Networking", "Database", "Data Warehouse", "Desktop", "Dynamics CRM", "ePMO", "Facilities", "Finance", "HR Info Systems", "HR Service Center", "Learning and Development", "Legal", "Loads and Billing", "OPA Reporting", "Mobile Engineering", "Mobile QA", "National Desk", "OPA Reporting", "Oracle Applications", "Payroll Service Center", "PMO", "Product", "Quality Assurance", "Security", "Service Provider Support", "Site Reliability OPS", "Systems Unix", "Systems Windows", "Telecom"]
+        for each_value in businessteam_list:
+            if businessteam == each_value:
+                flag = 1
+
+        if flag == 0:
+            status_code = 400
+            message = {"errorMessage": "Check the list of accepted values for businessTeam"}
+            return_message = return_body(status_code, message)
+            return return_message
+
     except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter businessTeam is not present"}
@@ -155,13 +186,20 @@ def lambda_handler(event,context):
             return_message = return_body(status_code, message)
             return return_message
 
-        if "Level 1/Public" not in classificationlabel or "Level 2/Confidential" not in classificationlabel or "Level 3/Restricted" not in classificationlabel:
+        flag = 0
+        classificationlabel_list = ["Level 1/Public", "Level 2/Confidential", "Level 3/Restricted"]
+        for each_value in classificationlabel_list:
+            if classificationlabel == each_value:
+                flag = 1
+
+        if flag == 0:
             status_code = 400
             message = {"errorMessage": "Check the listed values for classificationLabel"}
             return_message = return_body(status_code, message)
             return return_message
 
     except Exception as e:
+        print e
         status_code = 400
         message = {"errorMessage": "Parameter classificationLabel is not present"}
         return_message = return_body(status_code, message)
@@ -175,7 +213,13 @@ def lambda_handler(event,context):
             return_message = return_body(status_code, message)
             return return_message
 
-        if "CoreEngineeingTeam" in team or "CoreApiServices" in team or "CorePlatformTeam" in team or "Architecture" in team or "CoreAutomationTeam" in team:
+        flag = 0
+        team_list = ["CoreEngineeingTeam", "CoreApiServices", "CorePlatformTeam", "Architecture", "CoreAutomationTeam"]
+        for each_value in team_list:
+            if team == each_value:
+                flag = 1
+
+        if flag == 0:
             status_code = 400
             message = {"errorMessage": "Check the listed values for technicalTeam"}
             return_message = return_body(status_code, message)
@@ -184,15 +228,6 @@ def lambda_handler(event,context):
     except Exception as e:
         status_code = 400
         message = {"errorMessage": "Parameter technicalTeam is not present"}
-        return_message = return_body(status_code, message)
-        return return_message
-
-
-    try:
-        NonProd = str(body['environments']['nonProd'])
-    except Exception as e:
-        status_code = 400
-        message = {"errorMessage": "Parameter nonProd is not present"}
         return_message = return_body(status_code, message)
         return return_message
 
@@ -213,33 +248,27 @@ def lambda_handler(event,context):
         return_message = return_body(status_code, message)
         return return_message
 
+    QAEnvironment = "QA"
+    qa_env = "YES"
+    qa_endpoint = "https://" + applicationname + ".dkr.qa." + hostedzonename
 
-    if 'qa' in NonProd.lower():
-        QAEnvironment = "QA"
-        qa_env = "YES"
-        qa_endpoint = applicationname + ".dkr.qa." + hostedzonename
-    else:
-        QAEnvironment = "None"
-        qa_env = "NO"
-        qa_endpoint = "N/A"
+    DevEnvironment = "DEV"
+    dev_env = "YES"
+    dev_endpoint = "https://" + applicationname + ".dkr.dev." + hostedzonename
 
-    if 'dev' in NonProd.lower():
-        DevEnvironment = "DEV"
-        dev_env = "YES"
-        dev_endpoint = applicationname + ".dkr.dev." + hostedzonename
-    else:
-        DevEnvironment = "None"
-        dev_env = "NO"
-        dev_endpoint = "N/A"
+    StageEnvironment = "STAGE"
+    stage_env = "YES"
+    stage_endpoint = "https://" + applicationname + ".dkr.stage." + hostedzonename
 
     ProdEnvironment = "PROD"
     prod_env = "YES"
-    prod_endpoint = applicationname + ".dkr.prod." + prod_hostedzonename
+    prod_endpoint = "https://" + applicationname + ".dkr.prod." + prod_hostedzonename
+    prodblue_endpoint = "https://" + applicationname + ".dkr.prod-blue." + prod_hostedzonename    
 
     if Training == True:
         TrainEnvironment = "TRAINING"
         train_env = "YES"
-        train_endpoint = applicationname + ".dkr.training." + hostedzonename
+        train_endpoint = "https://" + applicationname + ".dkr.training." + hostedzonename
     else:
         TrainEnvironment = "None"
         train_env = "NO"
@@ -248,20 +277,12 @@ def lambda_handler(event,context):
     if DA == True:
         DAEnvironment = "DA"
         da_env = "YES"
-        da_endpoint = applicationname + ".dkr.da." + hostedzonename
+        da_endpoint = "https://" + applicationname + ".dkr.da." + hostedzonename
     else:
         DAEnvironment = "None"
         da_env = "NO"
         da_endpoint = "N/A"
 
-    if NonProd == "" or 'stage' in NonProd.lower():
-        StageEnvironment = "STAGE"
-        stage_env = "YES"
-        stage_endpoint = applicationname + ".dkr.stage." + hostedzonename
-    else:
-        StageEnvironment = "None"
-        stage_env = "NO"
-        stage_endpoint = "N/A"
 
     application = "New Application"
 
@@ -305,7 +326,15 @@ def lambda_handler(event,context):
 
     admin_rolearn = os.environ['ADMIN_ROLEARN']
     execution_rolename = os.environ['EXECUTION_ROLENAME']
-    
+
+    nonprod_certarn = os.environ['NONPROD_CERTARN']
+    prod_certarn = os.environ['PROD_CERTARN']
+
+    ecsautoscaling_arn = os.environ['ECSAUTOSCALING_ARN']  
+    prod_ecsautoscaling_arn = os.environ['PROD_ECSAUTOSCALING_ARN']
+
+    lifecyclepolicytext = os.environ['LIFECYCLEPOLICYTEXT']
+ 
     try: 
         response = cf.create_stack_set(
         StackSetName= applicationname,
@@ -496,7 +525,27 @@ def lambda_handler(event,context):
             {
                 'ParameterKey': 'ProdAccountId',
                 'ParameterValue': prod_acc
-            }            
+            },
+            {
+                'ParameterKey': 'NonProdCertARN',
+                'ParameterValue': nonprod_certarn
+            },
+            {
+                'ParameterKey': 'ProdCertARN',
+                'ParameterValue': prod_certarn
+            },
+            {
+                'ParameterKey': 'ServiceAutoScalingRoleArn',
+                'ParameterValue': ecsautoscaling_arn
+            },
+            {
+                'ParameterKey': 'ProdServiceAutoScalingRoleArn',
+                'ParameterValue': prod_ecsautoscaling_arn
+            },
+            {
+                'ParameterKey': 'LifeCyclePolicyText',
+                'ParameterValue': lifecyclepolicytext
+            }                        
         ],
         Tags = [
             {
@@ -540,7 +589,7 @@ def lambda_handler(event,context):
         ExecutionRoleName=execution_rolename
     )
 
-        print response
+        print response  
 
     except Exception as e:
         status_code = 400
@@ -553,7 +602,11 @@ def lambda_handler(event,context):
         resp = cf.create_stack_instances(
         StackSetName = applicationname,
         Accounts = [nonprod_acc, prod_acc],
-        Regions = ["us-east-1"]
+        Regions = ["us-east-1"],
+        OperationPreferences = {
+            'FailureToleranceCount': 1,
+            'MaxConcurrentCount': 2
+            }
         )
         print resp
 
@@ -572,18 +625,18 @@ def lambda_handler(event,context):
     #print resp
 
     if dev_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'DEV'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(dev_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'DEV'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(dev_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
     if qa_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'QA'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(qa_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'QA'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(qa_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
     if stage_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'STAGE'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(stage_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_NonProduction", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'STAGE'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(stage_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
     if prod_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_Production", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'PROD-BLUE'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str('')}, 'Time':{'S': str(status_time)}})
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_Production", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'PROD-GREEN'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(prod_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_Production", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'PROD1'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(prodblue_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_Production", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'PROD2'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(prod_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
     if train_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_Training", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'TRAINING'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(train_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_TrainingDA", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'TRAINING'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(train_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
     if da_env == "YES":
-        resp = dynamo_client.put_item(TableName="ECS_Inventory_DA", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'DA'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(da_endpoint)}, 'Time':{'S': str(status_time)}})
+        resp = dynamo_client.put_item(TableName="ECS_Inventory_TrainingDA", Item={'ApplicationName':{'S': applicationname}, 'Environment':{'S': 'DA'}, 'Version':{'S': version}, 'TechnicalTeam': {'S': team}, 'URL': {'S': str(da_endpoint)}, 'Endpoint': {'S': str(email)}, 'Time':{'S': str(status_time)}})
 
 
     status_code = 200
@@ -593,7 +646,7 @@ def lambda_handler(event,context):
     'ecrName' : ecr_name,
     'technicalTeam' : team,
     'email' : email,
-    'environmentType' : [{'DEV': dev_env, 'Endpoint': dev_endpoint}, {'QA': qa_env, 'Endpoint': qa_endpoint}, {'STAGE': stage_env, 'Endpoint': stage_endpoint}, {'PROD': prod_env, 'Endpoint': prod_endpoint}, {'TRAINING': train_env, 'Endpoint': train_endpoint}, {'DA': da_env, 'Endpoint': da_endpoint}]
+    'environmentType' : [{'DEV': dev_env, 'Endpoint': dev_endpoint}, {'QA': qa_env, 'Endpoint': qa_endpoint}, {'STAGE': stage_env, 'Endpoint': stage_endpoint}, {'PROD': prod_env, 'Endpoint': prod_endpoint}, {'PROD BLUE': 'YES', 'Endpoint': prodblue_endpoint}, {'TRAINING': train_env, 'Endpoint': train_endpoint}, {'DA': da_env, 'Endpoint': da_endpoint}]
     }
     
     return_message = return_body(status_code, return_message)

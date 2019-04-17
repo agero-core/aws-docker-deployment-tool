@@ -1,5 +1,5 @@
 # **Swap Production Blue/Green Environments**
-    POST /dev/stacks/swapProdBlueAndGreen
+    POST /stacks/swapProdBlueAndGreen
 
 ## **Description**
 - This API call swaps production blue & green environments
@@ -30,7 +30,7 @@
 ***
 ## **Example**
 ### Request
-POST https://<api-generated>.execute-api.us-east-1.amazonaws.com/dev/stacks/deploytoprodBlue
+POST https://yourcustomdevopsdomain.com/stacks/swapProdBlueAndGreen
 Body:
 ``` json
 {

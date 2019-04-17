@@ -60,6 +60,24 @@ admin_rolearn: <admin-rolearn-for-cloudformation-stack>
 execution_rolename: <execution_rolename>
 stsrolearn: <stsrolearn>
 stsrole_prod: <stsrole_prod>
+nonprod_certarn: <Certificate Manager ARN to be used in ALBs>
+prod_certarn: <Certificate Manager ARN to be used in ALBs>
+ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - NonProd Account>
+prod_ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - Prod Account>
+admin_sso_role_arn: <Administrator User SSO Role>
+poweruser_sso_role_arn: <PowerUser SSO Role>
+dev1_sso_role_arn: <Dev1 User SSO Role>
+dev2_sso_role_arn: <Dev2 User SSO Role>
+dev3_sso_role_arn: <Dev3 User SSO Role>
+customDomain:
+  domainName: <Custom Domain Name>
+  stage: <API Gateway Stage Name>
+  basePath:
+  certificateName: <Name of the Certificate associated with custom domain>
+  createRoute53Record: true
+  endpointType: <regional/edge>
+
+
 ```
 - Run this command to deploy Serverless Architecture for DevOps
 
@@ -90,7 +108,12 @@ functions:
  2. deploy image to non-production environments
  3. deploy image to production blue environment
  4. swap blue and green environment 
- 5. delete stack
+ 5. deploy to training/da environments
+ 6. add additional notification subscriptions to SNS
+ 7. shutdown nonprod tasks when not needed
+ 8. shutdown prod blue tasks when not needed
+ 9. find out devopsstack version deployed
+ 10. delete stack
  
  ***
 
@@ -98,8 +121,12 @@ functions:
 ### **Developer Endpoints**
  * [POST /dev/stacks](createstack.md)
  * [POST /dev/stacks/deploytoNonProd](deploytononprod.md)
- * [POST /dev/stacks/deployToProdBlue](deploytoprodblue.md)
+ * [POST /dev/stacks/deploytoProdBlue](deploytoprodblue.md)
  * [POST /dev/stacks/swapProdBlueAndGreen](swapbluegreen.md)
+ * [POST /dev/stacks/deploytoTrainDA](deploytotrainda.md)
+ * [POST /dev/stacks/addSubscription](addsubscription.md)
+ * [POST /dev/stacks/nonprodStatus](nonprodstatus.md)
+ * [POST /dev/stacks/prodblueStatus](prodbluestatus.md) 
  * [DELETE /dev/stacks](deletestack.md)
 
 ***

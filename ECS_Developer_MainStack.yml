@@ -207,6 +207,23 @@ Parameters:
     Type: String
     Description: HostedZoneId for the Reoute53 Record    
     
+  NonProdCertARN:
+    Type: String
+    Description: Certificate ARN for NonProd Environments    
+    
+  ProdCertARN:
+    Type: String
+    Description: Certificate ARN for Prod Environments       
+
+  ServiceAutoScalingRoleArn:
+    Type: String
+    
+  ProdServiceAutoScalingRoleArn:
+    Type: String    
+    
+  LifeCyclePolicyText:
+    Type: String    
+    
   NonProdAccountId:
     Type: String
   
@@ -268,6 +285,9 @@ Resources:
         AgeroService: !Ref AgeroService
         BusinessTeam: !Ref BusinessTeam
         ComplianceType: !Ref ComplianceType
+        NonProdCertARN: !Ref NonProdCertARN
+        ServiceAutoScalingRoleArn: !Ref ServiceAutoScalingRoleArn
+        LifeCyclePolicyText: !Ref LifeCyclePolicyText
         ProdAccountId: !Ref ProdAccountId
 
   ProdStack:
@@ -295,4 +315,6 @@ Resources:
         AgeroService: !Ref AgeroService
         BusinessTeam: !Ref BusinessTeam
         ComplianceType: !Ref ComplianceType
+        ProdCertARN: !Ref ProdCertARN
+        ServiceAutoScalingRoleArn: !Ref ProdServiceAutoScalingRoleArn
         

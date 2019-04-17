@@ -1,5 +1,5 @@
 # **Create Stack**
-    POST /dev/stacks
+    POST /stacks
 
 ## **Description**
 - This API call creates application stack for development
@@ -21,16 +21,12 @@
    - It needs to be a string 
  - **environments** _(required)_
    - This parameter will be a list of strings containing the environments to be deployed
-   - Allowed Values: dev, qa, stage
-   - Required format: ["dev", "qa", "stage"]
-   - It needs to have atleast one of the three given environments
-   - If left empty "dev" will be created by default
- - **training** _(required)_
-   - This parameter value needs to be boolean 
-   - Values: true or false
- - **da** _(required)_
-   - This parameter value needs to be boolean 
-   - Values: true or false  
+     - **training** _(required)_
+       - This parameter value needs to be boolean 
+       - Values: true or false
+     - **da** _(required)_
+       - This parameter value needs to be boolean 
+       - Values: true or false  
  - **tags** _(required)_
    - This will be a object containing required tags
      - **ageroService** _(required)_
@@ -54,7 +50,7 @@
    - **email**
      - The email of the team
    - **environmentType**
-     - The list of the environments that are been created
+     - The list of the environments with their URL that are been created
 ### Error
 - **400**
   - **errorMessage**
@@ -66,7 +62,7 @@
 ***
 ## **Example**
 ### Request
-POST https://<api-generated>.execute-api.us-east-1.amazonaws.com/dev/stacks
+POST https://yourcustomdevopsdomain.com/stacks
 Body:
 ``` json
 {  
@@ -74,11 +70,6 @@ Body:
    "description": "DevOps Testing API",
    "email":"team@company.com",
    "environments":{  
-      "nonProd":[  
-         "dev",
-         "qa",
-         "stage"
-      ],
       "training":false,
       "da":false
    },
