@@ -1,0 +1,1333 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: Configure and launch the AWS Elastic Container Service in NonProduction
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health
+  DevEnvironment:
+    Type: String
+    Description: Do you want to create an DEV Environment?
+    AllowedValues:
+      - DEV
+      - None
+    Default: DEV
+  QAEnvironment:
+    Type: String
+    Description: Do you want to create an QA Environment?
+    AllowedValues:
+      - QA
+      - None
+    Default: None
+  StageEnvironment:
+    Type: String
+    Description: Do you want to create an STAGE Environment?
+    AllowedValues:
+      - STAGE
+      - None
+    Default: None    
+  TrainEnvironment:
+    Type: String
+    Description: Do you want to create an TRAINING Environment?
+    AllowedValues:
+      - TRAINING
+      - None
+    Default: None
+  DAEnvironment:
+    Type: String
+    Description: Do you want to create an DA Environment?
+    AllowedValues:
+      - DA
+      - None
+    Default: None
+    
+  TechnicalTeam:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - CoreEngineeingTeam
+      - CoreApiServices
+      - CorePlatformTeam
+      - Architecture
+      - CoreAutomationTeam
+  Tier:
+    Type: String
+    Description: Which Tier Application belongs to? 
+  ClassificationLabel:
+    Type: String
+    Description: ClassificationLabel for this Application?    
+  AgeroService:
+    Type: String
+    Description: Which AgeroService this Application belongs to?
+  BusinessTeam:
+    Type: String
+    Description: Which BusinessTeam will Own this Application?
+  ComplianceType:
+    Type: String
+    Description: Which ComplianceType will this Application belongs to?
+    
+  DEVQAVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  STAGEVPC:
+    Type: String
+    Description: VPC to launch Services
+    
+  TRAININGVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  DAVPC:
+    Type: String
+    Description: VPC to launch Services
+
+  RepoURI:
+    Type: String
+    Description: RepoURI where the image is stored
+    
+  ECRName:
+    Type: String
+    Description: Elastic Container Repository Name
+    
+  DEVQASUBNET:
+    Type: CommaDelimitedList
+    Description: First Subnet for Container Service
+    
+  STAGESUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service
+
+  TRAININGSUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service    
+    
+  DASUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service
+      
+  DEVQAALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  STAGEALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  TRAININGALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer    
+    
+  DAALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+        
+  DEVQASG:
+    Type: String
+    Description: SecurityGroup
+    
+  STAGESG:
+    Type: String
+    Description: SecurityGroup    
+    
+  TRAININGSG:
+    Type: String
+    Description: SecurityGroup
+    
+  DASG:
+    Type: String
+    Description: SecurityGroup
+    
+  DEVQAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  STAGEALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  TRAININGALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  DAALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer    
+    
+  DomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record
+    
+  NonProdCertARN:
+    Type: String
+    Description: Certificate ARN for NonProd Environments    
+    
+  ServiceAutoScalingRoleArn:
+    Type: String
+
+  LifeCyclePolicyText:
+    Type: String
+    
+  ProdAccountId:
+    Type: String    
+    
+
+Conditions:
+  CreateDev: !Equals
+    - !Ref DevEnvironment
+    - DEV
+  CreateQA: !Equals
+    - !Ref QAEnvironment
+    - QA
+  CreateStage: !Equals
+    - !Ref StageEnvironment
+    -  STAGE
+  CreateTraining: !Equals
+    - !Ref TrainEnvironment
+    - TRAINING
+  CreateDA: !Equals
+    - !Ref DAEnvironment
+    - DA
+
+    
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Ref ECRName
+      LifecyclePolicy:
+        LifecyclePolicyText: !Ref LifeCyclePolicyText
+      RepositoryPolicyText:
+        Version: "2008-10-17"
+        Statement:
+          -
+            Sid: CrossAccountPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Join [ "", ["arn:aws:iam::", !Ref ProdAccountId, ":root"]]
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ApplicationName
+      
+  NonProdECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-nonprod']]
+      Scheme: internal
+      Subnets: !Ref DEVQAALBSUBNET
+      SecurityGroups:
+        - Ref: DEVQAALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-nonprod']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: NonProd
+
+  DEVECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-dev"]]
+      RetentionInDays: 180
+
+  DEVTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateDev
+    DependsOn: DEVECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-dev']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-dev']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: dev
+          Image: !Ref RepoURI
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-dev"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  DEVTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateDev
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-dev']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  NonProdALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref NonProdCertARN
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref DEVTargetGroup
+      LoadBalancerArn: !Ref NonProdECSApplicationLoadBalancer
+      Port: 443
+      Protocol: "HTTPS"
+      SslPolicy: "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
+      
+  DEVALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: CreateDev
+    DependsOn: NonProdALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref DEVTargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.dev.', !Ref DomainName]]
+      ListenerArn: !Ref NonProdALBListeners  
+      Priority: 1      
+      
+  DEVECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateDev
+    DependsOn: DEVALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-dev']]
+      TaskDefinition: !Ref DEVTaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-dev']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref DEVTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+            
+  DEVRoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateDev
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt NonProdECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt NonProdECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.dev.', !Ref DomainName, '.']]
+      Type: "A"
+      
+  DEVSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', ['ECSNotifications-', !Ref ApplicationName, '-dev']]
+      TopicName: !Join ['', ['ECSNotifications-', !Ref ApplicationName, '-dev']]
+      
+  DEVSNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: DEVSNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref DEVSNSTopic      
+
+  DEVServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: DEVECSService
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 2
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt DEVECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  DEVServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: DEVServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref DEVServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  DEVServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: DEVServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref DEVServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  DEVServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: DEVServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref DEVServiceScaleOutPolicy 
+        - !Ref DEVSNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt DEVECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  DEVServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: DEVServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref DEVServiceScaleInPolicy
+        - !Ref DEVSNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt DEVECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization                           
+      
+      
+  QAECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-qa"]]
+      RetentionInDays: 180
+      
+  QATaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateQA
+    DependsOn: QAECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-qa']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-qa']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: qa          
+          Image: !Ref RepoURI   
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-qa"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  QATargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateQA
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-qa']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+      
+  QAALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: CreateQA
+    DependsOn: NonProdALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref QATargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.qa.', !Ref DomainName]]          
+      ListenerArn: !Ref NonProdALBListeners      
+      Priority: 2
+      
+  QAECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateQA
+    DependsOn: QAALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-qa']]
+      TaskDefinition: !Ref QATaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-qa']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref QATargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+
+  QARoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateQA
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt NonProdECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt NonProdECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.qa.', !Ref DomainName, '.']]
+      Type: "A"
+      
+  QASNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-qa']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-qa']]
+      
+  QASNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: QASNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref QASNSTopic      
+      
+  QAServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: QAECSService
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 2
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt QAECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  QAServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: QAServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref QAServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  QAServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: QAServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref QAServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  QAServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: QAServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref QAServiceScaleOutPolicy
+        - !Ref QASNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt QAECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  QAServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: QAServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref QAServiceScaleInPolicy
+        - !Ref QASNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt QAECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization                                     
+      
+
+  STAGEECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-stage"]]
+      RetentionInDays: 180
+      
+  STAGETaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateStage
+    DependsOn: STAGEECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-stage']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-stage']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: stage          
+          Image: !Ref RepoURI  
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-stage"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  STAGETargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateStage
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-stage']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+      
+  STAGEALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: CreateStage
+    DependsOn: NonProdALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref STAGETargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.stage.', !Ref DomainName]]
+      ListenerArn: !Ref NonProdALBListeners      
+      Priority: 3
+      
+  STAGEECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateStage
+    DependsOn: STAGEALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-stage']]
+      TaskDefinition: !Ref STAGETaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-stage']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref STAGETargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+
+  STAGERoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateStage
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt NonProdECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt NonProdECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.stage.', !Ref DomainName, '.']]
+      Type: "A"     
+      
+  STAGESNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-stage']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-stage']]
+      
+  STAGESNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: STAGESNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref STAGESNSTopic      
+      
+  STAGEServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: STAGEECSService
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 2
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt STAGEECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  STAGEServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: STAGEServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref STAGEServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  STAGEServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: STAGEServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref STAGEServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  STAGEServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: STAGEServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref STAGEServiceScaleOutPolicy
+        - !Ref STAGESNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt STAGEECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  STAGEServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: STAGEServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref STAGEServiceScaleInPolicy
+        - !Ref STAGESNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt STAGEECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization                                   
+
+
+  TRAININGECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-training"]]
+      RetentionInDays: 180
+      
+  TRAININGTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateTraining
+    DependsOn: TRAININGECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-training']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-training']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: training          
+          Image: !Ref RepoURI   
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-training"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  TRAININGTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateTraining
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-training']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+      
+  TRAININGALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: CreateTraining
+    DependsOn: NonProdALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref TRAININGTargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.training.', !Ref DomainName]]
+      ListenerArn: !Ref NonProdALBListeners      
+      Priority: 4
+      
+  TRAININGECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateTraining
+    DependsOn: TRAININGALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-training']]
+      TaskDefinition: !Ref TRAININGTaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-training']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref TRAININGTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+
+  TRAININGRoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateTraining
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt NonProdECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt NonProdECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.training.', !Ref DomainName, '.']]
+      Type: "A"     
+      
+  TRAININGSNSTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateTraining
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-training']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-training']]
+      
+  TRAININGSNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Condition: CreateTraining
+    DependsOn: TRAININGSNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref TRAININGSNSTopic      
+      
+  TRAININGServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: CreateTraining
+    DependsOn: TRAININGECSService
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 2
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt TRAININGECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  TRAININGServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: CreateTraining
+    DependsOn: TRAININGServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref TRAININGServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  TRAININGServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: CreateTraining
+    DependsOn: TRAININGServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref TRAININGServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  TRAININGServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CreateTraining
+    DependsOn: TRAININGServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref TRAININGServiceScaleOutPolicy
+        - !Ref TRAININGSNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt TRAININGECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  TRAININGServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CreateTraining
+    DependsOn: TRAININGServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref TRAININGServiceScaleInPolicy
+        - !Ref TRAININGSNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt TRAININGECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization                                   
+      
+
+  DAECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-da"]]
+      RetentionInDays: 180
+      
+  DATaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: CreateDA
+    DependsOn: DAECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "ecsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-da']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "ecsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-da']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: da          
+          Image: !Ref RepoURI    
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-da"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  DATargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: CreateDA
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-da']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref DEVQAVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+      
+  DAALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: CreateDA
+    DependsOn: NonProdALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref DATargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.da.', !Ref DomainName]]
+      ListenerArn: !Ref NonProdALBListeners      
+      Priority: 5
+      
+  DAECSService:
+    Type: AWS::ECS::Service
+    Condition: CreateDA
+    DependsOn: DAALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-da']]
+      TaskDefinition: !Ref DATaskDefinition
+      DesiredCount: "1"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-da']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref DATargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref DEVQASG
+          Subnets: !Ref DEVQASUBNET
+
+  DARoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateDA
+    DependsOn: NonProdECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt NonProdECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt NonProdECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.da.', !Ref DomainName, '.']]
+      Type: "A"     
+      
+  DASNSTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateDA
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-da']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-da']]
+      
+  DASNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Condition: CreateDA
+    DependsOn: DASNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref DASNSTopic      
+      
+  DAServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: CreateDA
+    DependsOn: DAECSService
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 2
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt DAECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  DAServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: CreateDA
+    DependsOn: DAServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref DAServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  DAServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: CreateDA
+    DependsOn: DAServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref DAServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  DAServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CreateDA
+    DependsOn: DAServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref DAServiceScaleOutPolicy
+        - !Ref DASNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt DAECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  DAServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CreateDA
+    DependsOn: DAServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref DAServiceScaleInPolicy
+        - !Ref DASNSTopic
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt DAECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization      

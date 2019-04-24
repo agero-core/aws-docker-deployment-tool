@@ -1,5 +1,5 @@
 # **Deploy to NonProd Environments**
-    POST /dev/stacks/deploytoprodBlue
+    POST /stacks/deploytoProdBlue
 
 ## **Description**
 - This API call deploys image to production blue environment
@@ -29,7 +29,7 @@
 ***
 ## **Example**
 ### Request
-POST https://<api-generated>.execute-api.us-east-1.amazonaws.com/dev/stacks/deploytoprodBlue
+POST https://yourcustomdevopsdomain.com/stacks/deploytoProdBlue
 Body:
 ``` json
 {

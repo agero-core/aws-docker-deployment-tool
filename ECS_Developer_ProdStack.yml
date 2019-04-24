@@ -1,0 +1,531 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Elastic Container Service: Configure and launch the AWS Elastic Container Service in Production
+  
+Parameters:
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]*'
+  AppDescription:
+    Description: Application Description
+    Type: String
+  EmailAddress:
+    Type: String
+    Description: Notification Endpoint
+  HealthURL:
+    Type: String
+    Description: Enter customized Application Health URL IF you have! (Default is "/health")
+    Default: /health    
+  ProdEnvironment:
+    Type: String
+
+  TechnicalTeam:
+    Type: String
+    Description: Which Team will Own this Application?
+    AllowedValues:
+      - CoreEngineeingTeam
+      - CoreApiServices
+      - CorePlatformTeam
+      - Architecture
+      - CoreAutomationTeam
+  Tier:
+    Type: String
+    Description: Which Tier Application belongs to? 
+  ClassificationLabel:
+    Type: String
+    Description: ClassificationLabel for this Application?    
+  AgeroService:
+    Type: String
+    Description: Which AgeroService this Application belongs to?
+  BusinessTeam:
+    Type: String
+    Description: Which BusinessTeam will Own this Application?
+  ComplianceType:
+    Type: String
+    Description: Which ComplianceType will this Application belongs to?
+    
+  PRODVPC:
+    Type: String
+    Description: VPC to launch Services    
+
+  RepoURI:
+    Type: String
+    Description: RepoURI where the image is stored
+    
+  ECRName:
+    Type: String
+    Description: Elastic Container Repository Name
+    
+  PRODSUBNET:
+    Type: CommaDelimitedList
+    Description: Second Subnet for Container Service    
+          
+  PRODALBSUBNET:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: First Subnet for Application LoadBalancer
+    
+  PRODSG:
+    Type: String
+    Description: SecurityGroup
+        
+  PRODALBSG:
+    Type: String
+    Description: First SecurityGroup for Application LoadBalancer
+    
+  DomainName:
+    Type: String
+    Description: HostedZoneId for the Reoute53 Record
+    
+  ProdCertARN:
+    Type: String
+    Description: Certificate ARN for Prod Environments    
+    
+  ServiceAutoScalingRoleArn:
+    Type: String
+    
+    
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ApplicationName
+      
+  PRODECSApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod']]
+      Scheme: internal
+      Subnets: !Ref PRODALBSUBNET
+      SecurityGroups:
+        - Ref: PRODALBSG
+      Tags:
+        - Key: Name
+          Value: !Join ['', [ !Ref ApplicationName, '-prod']]
+        - Key: Application
+          Value: !Ref ApplicationName
+        - Key: EnvironmentType
+          Value: PROD           
+
+  PRODBlueECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-prod1"]]
+      RetentionInDays: 180
+      
+  PRODBlueTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: PRODBlueECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "crossAccountEcsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-prod1']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "crossAccountEcsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-prod1']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: prod          
+          Image: !Ref RepoURI
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-prod1"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  PRODBlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod1']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref PRODVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  PRODALBListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref ProdCertARN    
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref PRODBlueTargetGroup
+      LoadBalancerArn: !Ref PRODECSApplicationLoadBalancer
+      Port: 443
+      Protocol: "HTTPS"
+      SslPolicy: "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
+      
+  PRODBLUEALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: PRODALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref PRODBlueTargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.prod-blue.', !Ref DomainName]]
+      ListenerArn: !Ref PRODALBListeners  
+      Priority: 2           
+      
+  PRODBlueECSService:
+    Type: AWS::ECS::Service
+    DependsOn: PRODBLUEALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod1']]
+      TaskDefinition: !Ref PRODBlueTaskDefinition
+      DesiredCount: "2"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod1']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref PRODBlueTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref PRODSG
+          Subnets: !Ref PRODSUBNET
+          
+  PRODBLUESNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-prod1']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-prod1']]
+      
+  PRODBLUESNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: PRODBLUESNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref PRODBLUESNSTopic          
+
+  PRODBLUEServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: PRODBlueECSService
+    Properties:
+      MinCapacity: 2
+      MaxCapacity: 4
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt PRODBlueECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  PRODBLUEServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: PRODBLUEServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref PRODBLUEServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  PRODBLUEServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: PRODBLUEServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref PRODBLUEServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  PRODBLUEServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: PRODBLUEServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref PRODBLUEServiceScaleOutPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt PRODBlueECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  PRODBLUEServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: PRODBLUEServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref PRODBLUEServiceScaleInPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt PRODBlueECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization     
+      
+  PRODBLUERoute53Record:
+    Type: AWS::Route53::RecordSet
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt PRODECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt PRODECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.prod-blue.', !Ref DomainName, '.' ]]
+      Type: "A"                
+            
+
+  PRODGreenECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ["/ecs/", !Ref ApplicationName, "-prod2"]]
+      RetentionInDays: 180
+      
+  PRODGreenTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: PRODGreenECSLogGroup
+    Properties: 
+      Cpu: "256"
+      ExecutionRoleArn: "crossAccountEcsTaskExecutionRole"
+      Family: !Join ['', [ !Ref ApplicationName, '-prod2']]
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: "crossAccountEcsTaskExecutionRole"
+      ContainerDefinitions:
+        -
+          Name: !Join ['', [ !Ref ApplicationName, '-prod2']]
+          Environment:
+            - Name: ASPNETCORE_ENVIRONMENT
+              Value: prod          
+          Image: !Ref RepoURI   
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Join ['', ["/ecs/", !Ref ApplicationName, "-prod2"]]
+              "awslogs-region": "us-east-1"
+              "awslogs-stream-prefix": "ecs"          
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: "tcp"
+          Essential: "true"
+          
+  PRODGreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [ !Ref ApplicationName, '-prod2']]
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref PRODVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: "ip"
+      Matcher:
+        HttpCode: "200"
+        
+  PRODGREENALBListenerRules:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: PRODALBListeners
+    Properties:
+      Actions: 
+        - Type: forward      
+          TargetGroupArn: !Ref PRODGreenTargetGroup
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Join ['', [ !Ref ECRName, '.dkr.prod.', !Ref DomainName]]
+      ListenerArn: !Ref PRODALBListeners  
+      Priority: 1            
+      
+  PRODGreenECSService:
+    Type: AWS::ECS::Service
+    DependsOn: PRODGREENALBListenerRules
+    Properties: 
+      Cluster: !Ref Cluster
+      ServiceName: !Join ['', [ !Ref ApplicationName, '-prod2']]
+      TaskDefinition: !Ref PRODGreenTaskDefinition
+      DesiredCount: "2"
+      LoadBalancers:
+        - ContainerName: !Join ['', [ !Ref ApplicationName, '-prod2']]
+          ContainerPort: 80
+          TargetGroupArn: !Ref PRODGreenTargetGroup
+      LaunchType: "FARGATE"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration: 
+        MaximumPercent: 100
+        MinimumHealthyPercent: 50
+      NetworkConfiguration: 
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref PRODSG
+          Subnets: !Ref PRODSUBNET
+    
+  PRODGREENRoute53Record:
+    Type: AWS::Route53::RecordSet
+    DependsOn: PRODECSApplicationLoadBalancer
+    Properties:
+      AliasTarget: 
+        DNSName: !GetAtt PRODECSApplicationLoadBalancer.DNSName
+        HostedZoneId: !GetAtt PRODECSApplicationLoadBalancer.CanonicalHostedZoneID
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [ !Ref ApplicationName, '.dkr.prod.', !Ref DomainName, '.']]
+      Type: "A"
+      
+  PRODGREENSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-prod2']]
+      TopicName: !Join ['', [ 'ECSNotifications-', !Ref ApplicationName, '-prod2']]
+      
+  PRODGREENSNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: PRODGREENSNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref PRODGREENSNSTopic      
+      
+  PRODGREENServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: PRODGreenECSService
+    Properties:
+      MinCapacity: 2
+      MaxCapacity: 4
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsDefaultServiceName}
+        - EcsClusterName: !Ref Cluster
+          EcsDefaultServiceName: !GetAtt PRODGreenECSService.Name
+      RoleARN: !Ref ServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  PRODGREENServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: PRODGREENServiceScalingTarget
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref PRODGREENServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  PRODGREENServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: PRODGREENServiceScalingTarget      
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref PRODGREENServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+            
+  PRODGREENServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: PRODGREENServiceScaleOutPolicy    
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 70
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref PRODGREENServiceScaleOutPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt PRODGreenECSService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  PRODGREENServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: PRODGREENServiceScaleInPolicy
+    Properties:
+      EvaluationPeriods: 60
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: 30
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref PRODGREENServiceScaleInPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref Cluster
+        - Name: ServiceName
+          Value: !GetAtt PRODGreenECSService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization               
