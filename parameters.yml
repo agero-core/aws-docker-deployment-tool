@@ -1,56 +1,73 @@
 #parameters.yml
 #apiname: devops-demo
 #stage: stage
-nonprod_accountid: <NonProdAccountId>
-prod_accountid: <ProdAccountId>
-devqa_vpc: <devqa-vpc>
-stage_vpc: <stage-vpc>
-training_vpc: <training-vpc>
-da_vpc: <da-vpc>
-prod_vpc: <production-vpc>
-devqa_subnet: <devqa-container-subnets>
-stage_subnet: <stage-container-subnets>
-training_subnet: <training-container-subnets>
-da_subnet: <da-container-subnets>
-prod_subnet: <prod-container-subnets>
-devqa_elbsubnet: <devqa-elb-subnets>
-stage_elbsubnet: <stage-elb-subnets>
-training_elbsubnet: <training-elb-subnets>
-da_elbsubnet: <da-elb-subnets>
-prod_elbsubnet: <prod-elb-subnet>
-devqa_sg: <devqa-sg>
-stage_sg: <stage-sg>
-training_sg: <training-sg>
-da_sg: <da-sg>
-prod_sg: <prod-sg>
-devqa_elbsg: <devqa-elb-sg>
-stage_elbsg: <stage-elb-sg>
-training_elbsg: <training-elb-sg>
-da_elbsg: <da-elb-sg>
-prod_elbsg: <prod-elb-sg>
+nonprod_accountid: '019423597833'
+prod_accountid: '603530471334'
+devqa_vpc: vpc-09fe4c6043b10d2ef
+stage_vpc: vpc-0ff4511a070124ba2
+training_vpc: vpc-0b82df013e498c916
+da_vpc: vpc-0e8be9693ef70ecdf
+prod_vpc: vpc-03fb0c7c0f4bcb802
+devqa_subnet: subnet-015e09a47e99f361e, subnet-0f5e689bb96326071
+stage_subnet: subnet-0fa1119cae941a202, subnet-0a159a0883380f396
+training_subnet: subnet-00cdea6534467b656, subnet-0eb125ad85e776813
+da_subnet: subnet-0dec71459d5daf84c, subnet-04febde2153d6894b
+prod_subnet: subnet-040a2cba586a53c54, subnet-0d9704aa72b2195de, subnet-07ada6537ad37678a
+devqa_elbsubnet: 'subnet-01730a59cde56a8ba, subnet-0a4873323283b2fe4'
+stage_elbsubnet: 'subnet-0fd7d6c5d495dfbb2,subnet-049464422e8f988a4'
+training_elbsubnet: 'subnet-05b9e58587d5cb5cc,subnet-042062e080c118d7e'
+da_elbsubnet: 'subnet-0a4108e7b8beb51d5,subnet-035bd93bc0d67c222'
+prod_elbsubnet: 'subnet-0b721a5f83ee97ee0,subnet-0f7d9929a4e92d3c1,subnet-05e50d5f80cdc1c21'
+devqa_sg: sg-03a68a0ed568b2338
+stage_sg: sg-05041df5186d6b67e
+training_sg: sg-070c649a1bc481fd1
+da_sg: sg-0331aac04af88466f
+prod_sg: sg-0eea57cba32d4e783
+devqa_elbsg: sg-04d55c93d76ea3688
+stage_elbsg: sg-0c8fe22dbfaa36e9b
+training_elbsg: sg-0836d5b6931f4b587
+da_elbsg: sg-00edb25908bbf662f
+prod_elbsg: sg-0ee701e1cbce8a727
 region: us-east-1
-repouri: <repo-uri-sample-image>
-cftemplate: <url-for-cf-template>
-hostedzonename: <hostedzonename-NonProdAccount>
-prodhostedzonename: <hostedzonename-ProdAccount>
-admin_rolearn: <admin-rolearn-for-cloudformation-stack>
-execution_rolename: <execution_rolename>
-stsrolearn: <stsrolearn>
-stsrole_prod: <stsrole_prod>
-nonprod_certarn: <certificate_arn_nonprod_account>
-prod_certarn: <certificate_arn_prod_account>
-ecsautoscaling_arn: <ecs_autoscaling_arn_nonprod_account>
-prod_ecsautoscaling_arn: <ecs_autoscaling_arn_prod_account>
-admin_sso_role_arn: <admin_sso_role_for_api_access>
-poweruser_sso_role_arn: <poweruser_sso_role_for_api_access>
-dev1_sso_role_arn: <dev1_user_sso_role_for_api_access>
-dev2_sso_role_arn: <dev2_user_sso_role_for_api_access>
-dev3_sso_role_arn: <dev3_user_sso_role_for_api_access>
+repouri: 019423597833.dkr.ecr.us-east-1.amazonaws.com/devopsrepo:0.0.0.0
+cftemplate: https://agero-coreautomation-ecs-cf-template.s3.amazonaws.com/ECS_Developer_MainStack.yml
+hostedzonename: aut-nonprod.corppvt.cloud
+prodhostedzonename: aut-prod.corppvt.cloud
+admin_rolearn: 'arn:aws:iam::019423597833:role/CICDStackSet-Admin-Role'
+execution_rolename: 'CICD-stacksetexecution-role'
+stsrolearn: 'arn:aws:iam::989321628922:role/CrossAccountECSDynamoTableAccess'
+stsrole_prod: 'arn:aws:iam::603530471334:role/crossAccountEcsTaskExecutionRole'
+nonprod_certarn: 'arn:aws:acm:us-east-1:019423597833:certificate/f517044e-0e29-4afa-87e6-36dec0e9f5b9'
+prod_certarn: 'arn:aws:acm:us-east-1:603530471334:certificate/9aebb087-da4b-4c03-be5f-d34e006232c0'
+ecsautoscaling_arn: 'arn:aws:iam::019423597833:role/ecsAutoscaleRole'
+prod_ecsautoscaling_arn: 'arn:aws:iam::603530471334:role/ecsAutoscaleRole'
+admin_sso_role_arn: 'arn:aws:iam::019423597833:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_c51acd694e0e7d3c'
+poweruser_sso_role_arn: 'arn:aws:iam::019423597833:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_PowerUserAccess_265ecef03d6e41fb'
+dev1_sso_role_arn: 'arn:aws:iam::019423597833:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Dev1_ebb46eb3c0bd936c'
+dev2_sso_role_arn: 'arn:aws:iam::019423597833:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Dev2-NonProd_eb8e619969e6f756'
+dev3_sso_role_arn: 'arn:aws:iam::019423597833:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Dev3-NonProd_9d83713f7b71dbba'
+ecrlifecyclepolicytext: '{
+  "rules": [
+    {
+      "action": {
+        "type": "expire"
+      },
+      "selection": {
+        "countType": "sinceImagePushed",
+        "countUnit": "days",
+        "countNumber": 180,
+        "tagStatus": "any"
+      },
+      "description": "Remove 6 month older images",
+      "rulePriority": 1
+    }
+  ]
+}'
 customDomain:
-  domainName: <custom-domain-url>
+  domainName: coreautomationteamapi.aut-nonprod.corppvt.cloud
   stage: dev
   basePath: 
-  certificateName: <certificate-name>
+  certificateName: '*.aut-nonprod.cloud.corppvt'
   createRoute53Record: true
   endpointType: 'regional'
 

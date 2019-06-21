@@ -49,10 +49,7 @@ def delete_ecr(stackname):
 
 ###     SEND SNS NOTIFICATION   ###
 def sendnotification(stackname, nonprod_acc):
-    env_list = ["dev", "qa", "stage"]
-    for env in env_list:
-        env_name = stackname + "-" + env
-        sns_arn = "arn:aws:sns:us-east-1:" + nonprod_acc + ":ECSNotifications-" + env_name
+        sns_arn = "arn:aws:sns:us-east-1:" + nonprod_acc + ":ECSNotifications-" + stackname
 
         sns_message = "Deleting the Stack and all environments for " + stackname
         subject = "Deleting the Stack for the Application " + stackname
@@ -129,7 +126,7 @@ def lambda_handler(event, context):
             print e
             pass
 
-        sendnotification(stackname, nonprod_acc)
+        sendnotification(stackname.lower(), nonprod_acc)
 
         status_code = 200
         message = {'message': 'StackInstances Deletion Initiated', 'Warning': 'Please be aware to Remove StackSet been created in CloudFormation'}

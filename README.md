@@ -112,7 +112,7 @@ functions:
  6. add additional notification subscriptions to SNS
  7. shutdown nonprod tasks when not needed
  8. shutdown prod blue tasks when not needed
- 9. find out devopsstack version deployed
+ 9. find out application related information and version deployed
  10. delete stack
  
  ***
@@ -126,7 +126,8 @@ functions:
  * [POST /stacks/deploytoTrainDA](deploytotrainda.md)
  * [POST /stacks/addSubscription](addsubscription.md)
  * [POST /stacks/nonprodStatus](nonprodstatus.md)
- * [POST /stacks/prodblueStatus](prodbluestatus.md) 
+ * [POST /stacks/prodblueStatus](prodbluestatus.md)
+ * [POST /stacks/applicationInfo](applicationInfo.md)
  * [DELETE /stacks](deletestack.md)
 
 ***

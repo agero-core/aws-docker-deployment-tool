@@ -229,6 +229,20 @@ Resources:
     Properties:
       ClusterName: !Ref ApplicationName
       
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Join ['', ['ECSNotifications-', !Ref ECRName]]
+      TopicName: !Join ['', ['ECSNotifications-', !Ref ECRName]]
+      
+  SNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    DependsOn: SNSTopic
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref SNSTopic
+      
   NonProdECSApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
