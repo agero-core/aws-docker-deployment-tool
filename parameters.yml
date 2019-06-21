@@ -1,0 +1,55 @@
+apiname: <api-name>
+stage: <dev/qa/stage/prod>
+nonprod_accountid: <NonProdAccountId>
+prod_accountid: <ProdAccountId>
+devqa_vpc: <devqa-vpc>
+stage_vpc: <stage-vpc>
+training_vpc: <training-vpc>
+da_vpc: <da-vpc>
+prod_vpc: <production-vpc>
+devqa_subnet: <devqa-container-subnets>
+stage_subnet: <stage-container-subnets>
+training_subnet: <training-container-subnets>
+da_subnet: <da-container-subnets>
+prod_subnet: <prod-container-subnets>
+devqa_elbsubnet: <devqa-elb-subnets>
+stage_elbsubnet: <stage-elb-subnets>
+training_elbsubnet: <training-elb-subnets>
+da_elbsubnet: <da-elb-subnets>
+prod_elbsubnet: <prod-elb-subnet>
+devqa_sg: <devqa-sg>
+stage_sg: <stage-sg>
+training_sg: <training-sg>
+da_sg: <da-sg>
+prod_sg: <prod-sg>
+devqa_elbsg: <devqa-elb-sg>
+stage_elbsg: <stage-elb-sg>
+training_elbsg: <training-elb-sg>
+da_elbsg: <da-elb-sg>
+prod_elbsg: <prod-elb-sg>
+region: us-east-1
+repouri: <repo-uri-sample-image>
+ecscftemplatebucket: <bucket-for-storing-cf-template>
+cftemplate: <url-for-cf-template>
+hostedzonename: <hostedzonename-NonProdAccount>
+prodhostedzonename: <hostedzonename-ProdAccount>
+admin_rolearn: <admin-rolearn-for-cloudformation-stack>
+execution_rolename: <execution_rolename>
+stsrolearn: <stsrolearn>
+stsrole_prod: <stsrole_prod>
+nonprod_certarn: <Certificate Manager ARN to be used in ALBs>
+prod_certarn: <Certificate Manager ARN to be used in ALBs>
+ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - NonProd Account>
+prod_ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - Prod Account>
+admin_sso_role_arn: <Administrator User SSO Role>
+poweruser_sso_role_arn: <PowerUser SSO Role>
+dev1_sso_role_arn: <Dev1 User SSO Role>
+dev2_sso_role_arn: <Dev2 User SSO Role>
+dev3_sso_role_arn: <Dev3 User SSO Role>
+customDomain:
+  domainName: <Custom Domain Name>
+  stage: <API Gateway Stage Name>
+  basePath:
+  certificateName: <Name of the Certificate associated with custom domain>
+  createRoute53Record: true
+  endpointType: <regional/edge>
