@@ -111,7 +111,7 @@ def create_taskdefinitions(apiname, repo_uri, env):
             'environment': [
                 {
                     'name': 'ASPNETCORE_ENVIRONMENT',
-                    'value': env
+                    'value': 'prod'
                 }
             ],
             'image': repo_uri,
@@ -199,23 +199,11 @@ def lambda_handler(event, context):
         version = dynamo_response['Item']['Version']['S']
         task_env = 'stage'
     except Exception as e:
-        try:
-            dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': 'QA'}}, AttributesToGet=['TechnicalTeam', 'Version'])
-            techteam = dynamo_response['Item']['TechnicalTeam']['S']
-            version = dynamo_response['Item']['Version']['S']
-            task_env = 'qa'
-        except Exception as e:
-            try:
-                dynamo_response = dynamo_client.get_item(TableName="ECS_Inventory_NonProduction", Key={'ApplicationName': {'S': appname}, 'Environment': {'S': 'DEV'}}, AttributesToGet=['TechnicalTeam', 'Version'])
-                techteam = dynamo_response['Item']['TechnicalTeam']['S']
-                version = dynamo_response['Item']['Version']['S']
-                task_env = 'dev'
-            except Exception as e:
-                print e
-                status_code = 409
-                message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
-                return_message = return_body(status_code, message)
-                return return_message
+        print e
+        status_code = 409
+        message = {'errorMessage': appname + " does not exist. You must create the Stack first"}
+        return_message = return_body(status_code, message)
+        return return_message
 
 
     prod_vpc = os.environ['PROD_VPC']

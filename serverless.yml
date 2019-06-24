@@ -230,9 +230,9 @@ functions:
           detail-type:
             - "ECS Task State Change"
 
-  addSubscription:
-    name: addSubscription
-    handler: addSubscription.lambda_handler
+  addSubscriptions:
+    name: addSubscriptions
+    handler: addSubscriptions.lambda_handler
     timeout: 5
     environment:
       STSROLE_PROD: ${self:custom.stsrole_prod}
@@ -297,8 +297,31 @@ functions:
           method: post
           authorizer: aws_iam
           cors: true
-    
 
+  cfstackset_notification:
+    name: cfstackset_notification
+    handler: cfstackset_notification.lambda_handler
+    timeout: 300
+    environment:
+      NONPROD_ACC: ${self:custom.nonprod_accountid}
+    events:
+      - cloudwatchEvent:
+        event:
+          source:
+            - "aws.cloudformation"    
+
+  ecr_notifications:
+    name: ecr_notifications
+    handler: ecr_notifications.lambda_handler
+    timeout: 300
+    environment:
+      NONPROD_ACC: ${self:custom.nonprod_accountid}
+    events:
+      - cloudwatchEvent:
+        event:
+          source:
+            - "aws.ecr"
+    
 # you can add CloudFormation resource templates here
 resources:
   Resources:
@@ -328,14 +351,14 @@ resources:
     AgeroECSCFTemplateS3:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: agero-devops-ecs-cf-template
+        BucketName: agero-coreautomation-ecs-cf-template
         VersioningConfiguration:
           Status: Enabled
 
     AgeroECSCFTemplateBucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
-        Bucket: agero-devops-ecs-cf-template
+        Bucket: agero-coreautomation-ecs-cf-template
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -355,3 +378,110 @@ resources:
               Sid: "AddCrossAccountPermission"
               Resource: 
                 Fn::Join: ['', [ Fn::GetAtt: [AgeroECSCFTemplateS3, Arn], "/*"] ] 
+        
+#    DynamoECSInventoryNonProd:
+#      Type: AWS::DynamoDB::Table
+#      Properties:
+#        TableName: ECS_Inventory_NonProduction
+#        AttributeDefinitions:
+#          - AttributeName: "ApplicationName"  
+#            AttributeType: "S"
+#          - AttributeName: "Environment"
+#            AttributeType: "S"
+#        KeySchema:
+#          - AttributeName: "ApplicationName"
+#            KeyType: "HASH"
+#          - AttributeName: "Environment"
+#            KeyType: "RANGE"      
+#        ProvisionedThroughput:
+#          ReadCapacityUnits: "5"
+#          WriteCapacityUnits: "5"
+
+
+#    DynamoECSInventoryProd:
+#      Type: AWS::DynamoDB::Table
+#      Properties:
+#        TableName: ECS_Inventory_Production
+#        AttributeDefinitions:
+#          - AttributeName: "ApplicationName"
+#            AttributeType: "S"
+#          - AttributeName: "Environment"
+#            AttributeType: "S"
+#        KeySchema:
+#          - AttributeName: "ApplicationName"
+#            KeyType: "HASH"
+#          - AttributeName: "Environment"
+#            KeyType: "RANGE"
+#        ProvisionedThroughput:
+#          ReadCapacityUnits: "5"
+#          WriteCapacityUnits: "5"
+
+#    DynamoECSInventoryTrainingDA:
+#      Type: AWS::DynamoDB::Table
+#      Properties:
+#        TableName: ECS_Inventory_Training_DA
+#        AttributeDefinitions:
+#          - AttributeName: "ApplicationName"
+#            AttributeType: "S"
+#          - AttributeName: "Environment"
+#            AttributeType: "S"
+#        KeySchema:
+#          - AttributeName: "ApplicationName"
+#            KeyType: "HASH"
+#          - AttributeName: "Environment"
+#            KeyType: "RANGE"
+#        ProvisionedThroughput:
+#          ReadCapacityUnits: "5"
+#          WriteCapacityUnits: "5"
+
+#    DynamoDevOpsLogs:
+#      Type: AWS::DynamoDB::Table
+#      Properties:
+#        TableName: DevOpsLogsTable
+#        AttributeDefinitions:
+#          - AttributeName: "ResourceName"
+#            AttributeType: "S"
+#          - AttributeName: "Time"
+#            AttributeType: "S"
+#        KeySchema:
+#          - AttributeName: "ResourceName"
+#            KeyType: "HASH"
+#          - AttributeName: "Time"
+#            KeyType: "RANGE"
+#        ProvisionedThroughput:
+#          ReadCapacityUnits: "5"
+#          WriteCapacityUnits: "5"
+         
+          
+#    Repository:
+#      Type: AWS::ECR::Repository
+#      Properties: 
+#        RepositoryName: ${self:custom.apiname}
+#
+#    Cluster:
+#      Type: AWS::ECS::Cluster
+#      Properties:
+#        ClusterName: ${self:custom.apiname}
+#
+#    TaskDefinition:
+#      Type: AWS::ECS::TaskDefinition
+#      Properties:
+#        Cpu: 1024
+#        ExecutionRoleArn: arn:aws:iam::${self:custom.accountid}:role/ecsTaskExecutionRole
+#        Memory: 2048
+#        NetworkMode: awsvpc
+#        RequiresCompatibilities: 
+#          - FARGATE
+#        TaskRoleArn: arn:aws:iam::${self:custom.accountid}:role/ecsTaskExecutionRole
+#        ContainerDefinitions: 
+#          - Image: 377558703253.dkr.ecr.us-east-1.amazonaws.com/${self:custom.apiname}
+#            Name: ${self:custom.apiname}
+
+    
+                
+        
+
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"

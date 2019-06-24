@@ -245,7 +245,7 @@ Resources:
     Type: 'AWS::CloudFormation::Stack'
     Condition: NonProdStack
     Properties: 
-      TemplateURL: https://s3.amazonaws.com/agero-devops-ecs-cf-template/ECS_Developer_NonProdStack.yml
+      TemplateURL: https://s3.amazonaws.com/agero-coreautomation-ecs-cf-template/ECS_Developer_NonProdStack.yml
       Parameters:
         ApplicationName: !Ref ApplicationName
         AppDescription: !Ref AppDescription
@@ -294,7 +294,7 @@ Resources:
     Type: 'AWS::CloudFormation::Stack'
     Condition: ProdStack
     Properties: 
-      TemplateURL: https://s3.amazonaws.com/agero-devops-ecs-cf-template/ECS_Developer_ProdStack.yml
+      TemplateURL: https://s3.amazonaws.com/agero-coreautomation-ecs-cf-template/ECS_Developer_ProdStack.yml
       Parameters:
         ApplicationName: !Ref ApplicationName
         AppDescription: !Ref AppDescription

@@ -93,18 +93,18 @@ def lambda_handler(event, context):
     for env in environments:
         env_name = applicationName + '-' + env.lower()
         if 'dev' in env.lower() or 'qa' in env.lower() or 'stage' in env.lower() or 'training' in env.lower() or 'da' in env.lower():
-            topic_arn = "arn:aws:sns:us-east-1:" + nonprod_acc + ":" + env_name
+            topic_arn = "arn:aws:sns:us-east-1:" + nonprod_acc + ":ECSNotifications-" + env_name
             create_subscription(sns, topic_arn, protocol, endpoint)
             x = "success"
 
         elif 'prod' in env.lower():
             env_name = applicationName + "-prod1"
-            topic_arn = "arn:aws:sns:us-east-1:" + prod_acc + ":" + env_name
+            topic_arn = "arn:aws:sns:us-east-1:" + prod_acc + ":ECSNotifications-" + env_name
             print topic_arn
             create_subscription(sns_prod, topic_arn, protocol, endpoint)
             env_name = applicationName + "-prod2"
             print topic_arn
-            topic_arn = "arn:aws:sns:us-east-1:" + prod_acc + ":" + env_name
+            topic_arn = "arn:aws:sns:us-east-1:" + prod_acc + ":ECSNotifications-" + env_name
             print topic_arn
             create_subscription(sns_prod, topic_arn, protocol, endpoint)
             x = "success"

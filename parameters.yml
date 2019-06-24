@@ -1,6 +1,5 @@
-#parameters.yml
-#apiname: devops-demo
-#stage: stage
+apiname: <api-name>
+stage: <dev/qa/stage/prod>
 nonprod_accountid: <NonProdAccountId>
 prod_accountid: <ProdAccountId>
 devqa_vpc: <devqa-vpc>
@@ -30,6 +29,7 @@ da_elbsg: <da-elb-sg>
 prod_elbsg: <prod-elb-sg>
 region: us-east-1
 repouri: <repo-uri-sample-image>
+ecscftemplatebucket: <bucket-for-storing-cf-template>
 cftemplate: <url-for-cf-template>
 hostedzonename: <hostedzonename-NonProdAccount>
 prodhostedzonename: <hostedzonename-ProdAccount>
@@ -37,20 +37,19 @@ admin_rolearn: <admin-rolearn-for-cloudformation-stack>
 execution_rolename: <execution_rolename>
 stsrolearn: <stsrolearn>
 stsrole_prod: <stsrole_prod>
-nonprod_certarn: <certificate_arn_nonprod_account>
-prod_certarn: <certificate_arn_prod_account>
-ecsautoscaling_arn: <ecs_autoscaling_arn_nonprod_account>
-prod_ecsautoscaling_arn: <ecs_autoscaling_arn_prod_account>
-admin_sso_role_arn: <admin_sso_role_for_api_access>
-poweruser_sso_role_arn: <poweruser_sso_role_for_api_access>
-dev1_sso_role_arn: <dev1_user_sso_role_for_api_access>
-dev2_sso_role_arn: <dev2_user_sso_role_for_api_access>
-dev3_sso_role_arn: <dev3_user_sso_role_for_api_access>
+nonprod_certarn: <Certificate Manager ARN to be used in ALBs>
+prod_certarn: <Certificate Manager ARN to be used in ALBs>
+ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - NonProd Account>
+prod_ecsautoscaling_arn: <IAM Role ARN for ECS AutoScaling - Prod Account>
+admin_sso_role_arn: <Administrator User SSO Role>
+poweruser_sso_role_arn: <PowerUser SSO Role>
+dev1_sso_role_arn: <Dev1 User SSO Role>
+dev2_sso_role_arn: <Dev2 User SSO Role>
+dev3_sso_role_arn: <Dev3 User SSO Role>
 customDomain:
-  domainName: <custom-domain-url>
-  stage: dev
-  basePath: 
-  certificateName: <certificate-name>
+  domainName: <Custom Domain Name>
+  stage: <API Gateway Stage Name>
+  basePath:
+  certificateName: <Name of the Certificate associated with custom domain>
   createRoute53Record: true
-  endpointType: 'regional'
-
+  endpointType: <regional/edge>
