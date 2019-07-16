@@ -123,6 +123,8 @@ functions:
  * [POST /stacks/deploytoNonProd](deploytononprod.md)
  * [POST /stacks/deploytoProdBlue](deploytoprodblue.md)
  * [POST /stacks/swapProdBlueAndGreen](swapbluegreen.md)
+ * [POST /stacks/deploytoProdBlueWest](deploytoprodbluewest.md)
+ * [POST /stacks/swapProdWestBlueAndGreen](swapbluegreenwest.md) 
  * [POST /stacks/deploytoTrainDA](deploytotrainda.md)
  * [POST /stacks/addSubscription](addsubscription.md)
  * [POST /stacks/nonprodStatus](nonprodstatus.md)
